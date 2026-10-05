@@ -1,0 +1,104 @@
+/**
+ * -----------------------------------------------------------------------------
+ * Autor / Author: Ignacio Gutiérrez Serrera
+ * GitHub: https://github.com/Ignacio0407 (@Ignacio0407)
+ * Contact / Email: ignaciogutierrezserrera@gmail.com
+ * 
+ * 🇬🇧 NON-COMMERCIAL & EDUCATIONAL LICENSE:
+ * This software was developed by Ignacio Gutiérrez Serrera.
+ * Permission is granted to use, copy, modify, and study this software for 
+ * non-commercial, personal, academic, and educational purposes, provided 
+ * that this copyright notice, author attribution, and contact details are 
+ * preserved in all copies or substantial portions of the software.
+ * 
+ * Any commercial use, integration into proprietary software, or closed-source 
+ * distribution is strictly prohibited without prior written permission and an 
+ * express commercial license granted by the author.
+ * 
+ * 🇪🇸 LICENCIA PARA FINES NO LUCRATIVOS Y EDUCATIVOS:
+ * Este software ha sido desarrollado por Ignacio Gutiérrez Serrera.
+ * Se autoriza su uso, copia, modificación y estudio exclusivamente para 
+ * fines personales, académicos, de investigación y educativos no lucrativos, 
+ * con la condición obligatoria de mantener intacto este aviso de copyright, 
+ * la atribución de autoría y los datos de contacto en todas las copias.
+ * 
+ * Queda terminantemente prohibido cualquier uso comercial, integración en 
+ * software privativo o distribución con fines lucrativos sin la autorización 
+ * previa por escrito del autor y la adquisición de una licencia comercial.
+ * -----------------------------------------------------------------------------
+ */
+
+.dh-container {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  background: radial-gradient(ellipse at center, #0a0a0a 0%, #000000 70%);
+  color: #fff;
+}
+
+.dh-overlay {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  padding-top: 7vh;
+}
+
+.dh-title {
+  font-size: 2.2rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.dh-subtitle {
+  opacity: 0.8;
+  margin-top: 0.5rem;
+}
+
+.dh-stage {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.dh-flag {
+  position: absolute;
+  top: -10vh;                 /* starts out of screen */
+  will-change: transform;     /* performance hint */
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,0.4));
+  animation-name: dh-fall, dh-wiggle;
+  animation-timing-function: linear, ease-in-out;
+  animation-iteration-count: infinite, infinite;
+}
+
+/* Vertical fall */
+@keyframes dh-fall {
+  0%   { transform: translateY(-10vh); opacity: 0.9; }
+  95%  { opacity: 0.95; }
+  100% { transform: translateY(110vh); opacity: 0.0; }
+}
+
+/* Little horizontal movement and rotation */
+@keyframes dh-wiggle {
+  0%   { transform: translateY(-10vh) translateX(0) rotate(0deg); }
+  25%  { transform: translateY(25vh) translateX(-1.2vw) rotate(-2deg); }
+  50%  { transform: translateY(50vh) translateX(1.2vw) rotate(2deg); }
+  75%  { transform: translateY(75vh) translateX(-1vw) rotate(-1deg); }
+  100% { transform: translateY(110vh) translateX(0) rotate(0deg); }
+}
+
+/* Accesible mode: reduce movement if the user prefers */
+@media (prefers-reduced-motion: reduce) {
+  .dh-flag {
+    animation: none;
+    position: static;
+    display: inline-block;
+    margin: 0.25rem;
+  }
+  .dh-stage {
+    position: relative;
+    text-align: center;
+    padding: 2rem;
+  }
+}

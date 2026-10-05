@@ -1,0 +1,122 @@
+/**
+ * -----------------------------------------------------------------------------
+ * Autor / Author: Ignacio Gutiérrez Serrera
+ * GitHub: https://github.com/Ignacio0407 (@Ignacio0407)
+ * Contact / Email: ignaciogutierrezserrera@gmail.com
+ * 
+ * 🇬🇧 NON-COMMERCIAL & EDUCATIONAL LICENSE:
+ * This software was developed by Ignacio Gutiérrez Serrera.
+ * Permission is granted to use, copy, modify, and study this software for 
+ * non-commercial, personal, academic, and educational purposes, provided 
+ * that this copyright notice, author attribution, and contact details are 
+ * preserved in all copies or substantial portions of the software.
+ * 
+ * Any commercial use, integration into proprietary software, or closed-source 
+ * distribution is strictly prohibited without prior written permission and an 
+ * express commercial license granted by the author.
+ * 
+ * 🇪🇸 LICENCIA PARA FINES NO LUCRATIVOS Y EDUCATIVOS:
+ * Este software ha sido desarrollado por Ignacio Gutiérrez Serrera.
+ * Se autoriza su uso, copia, modificación y estudio exclusivamente para 
+ * fines personales, académicos, de investigación y educativos no lucrativos, 
+ * con la condición obligatoria de mantener intacto este aviso de copyright, 
+ * la atribución de autoría y los datos de contacto en todas las copias.
+ * 
+ * Queda terminantemente prohibido cualquier uso comercial, integración en 
+ * software privativo o distribución con fines lucrativos sin la autorización 
+ * previa por escrito del autor y la adquisición de una licencia comercial.
+ * -----------------------------------------------------------------------------
+ */
+
+.list-generator-container {
+  padding: 1rem;
+}
+
+.sort-bar {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.list-generator-container .table {
+  background-color: transparent;
+  border-radius: 4px;
+}
+
+.table th {
+  background-color: #f8f9fa;
+}
+
+.table td, .table th {
+  vertical-align: middle;
+}
+
+
+.mass-actions-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background-color: #f8f9fa;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}
+
+.selected-counter {
+  font-weight: bold;
+  color: #495057;
+}
+
+/* Mass Edit Modal Styles */
+.mass-edit-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  z-index: 10000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.mass-edit-modal {
+  background-color: white;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 1000px;
+  max-height: 90vh;
+  overflow: auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.mass-edit-content {
+  padding: 20px;
+}
+
+.mass-edit-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+
+/* Review Modal Styles */
+.review-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 4px solid #000; /* separador entre parejas */
+}
+
+.review-divider {
+  height: 1px;
+  background-color: #000; /* separador original/updated */
+}
+
+.review-original,
+.review-updated {
+  padding: 8px;
+}
