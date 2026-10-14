@@ -34,6 +34,7 @@ Un ecosistema integral y fuertemente tipado desarrollado en **Spring Boot 3 (Jav
    - [4.6. DoNotHackMyApp / RouteGuard](#46-donothackmyapp--routeguard)
    - [4.7. ButtonLink (Navegación Limpia)](#47-buttonlink)
    - [4.8. WebSocketManager (Cliente STOMP en Tiempo Real)](#48-websocketmanager)
+   - [4.9. Diseño Adaptable y CSS Responsive (vh, vw, rem y Media Queries)](#49-diseño-adaptable-y-css-responsive)
 5. [Pruebas Automatizadas y Calidad](#5-pruebas-automatizadas-y-calidad)
 6. [Licencia, Autoría y Propiedad Intelectual](#6-licencia-autoría-y-propiedad-intelectual)
 
@@ -166,6 +167,8 @@ El paquete `jwt` suministra 3 componentes esenciales para la seguridad basada en
 
 ## 4. Capa Frontend: Generadores Dinámicos de UI
 
+Todos los componentes visuales del frontend cuentan con una arquitectura de **diseño adaptable (*responsive*)** implementada mediante unidades relativas fluidas (`vh`, `vw`, `rem`) y *media queries* optimizadas para cualquier resolución y dispositivo (móvil, tableta y escritorio).
+
 ### 4.1. FormGenerator vs Formik
 * **Rendimiento:** Formik maneja el estado de cada input en React State, re-renderizando todo el formulario en **cada tecla pulsada**. `FormGenerator` se basa en **React Hook Form** (referencias no controladas y suscripciones aisladas), manteniendo cero re-renders innecesarios.
 * **Eliminación de Boilerplate:** El formulario se describe mediante un array declarativo `FieldDef[]` en lugar de decenas de etiquetas JSX manuales.
@@ -235,6 +238,22 @@ wsManager.addSubscription<UpdatePayload>('matches/dashboard', (data) => {
 
 wsManager.initConnection();
 ```
+
+### 4.9. Diseño Adaptable y CSS Responsive
+
+Todos los componentes de interfaz de usuario del frontend están diseñados para ser **completamente adaptables (*responsive*)**, garantizando una visualización y ergonomía óptimas tanto en pantallas de escritorio y portátiles como en tabletas y dispositivos móviles:
+
+* **Estrategia de Unidades Relativas (`vh`, `vw`, `rem`):**
+  * **Sustitución de Píxeles Fijos (`px`):** Se eliminaron las medidas estáticas rígidas en favor de un sistema dimensional fluido, previniendo desbordamientos y roturas de maquetación en distintas densidades y relaciones de aspecto.
+  * **Uso de `rem` para Tipografías y Espaciados:** Los tamaños de fuente, márgenes, *paddings*, radios de borde (`border-radius`) y grosores de borde se expresan en `rem`. Esto asegura una escala armoniosa que respeta la configuración de accesibilidad y el tamaño de fuente base definido por el usuario en el navegador (*root font size*).
+  * **Uso de `vh` y `vw` para Dimensiones del Viewport:** Las alturas de modales y asistentes transaccionales (`max-height: 90vh`), anchos máximos dinámicos (`max-width: 52.08vw`), paddings de contenedores y áreas de visualización (*overlays*) se calculan proporcionalmente a la ventana gráfica, manteniendo proporciones equilibradas tanto en pantallas panorámicas como en pantallas compactas.
+* **Adición de Media Queries Específicas:**
+  * **Tabletas (`@media (max-width: 1024px)`):** Se incrementan las áreas táctiles de interacción (*touch targets*), aumentando el tamaño y espaciado de botones (`cool-button`), selectores y controles del buscador (`SearchBar`), y ampliando el ancho relativo de los modales transaccionales (`MassEditWizard`) hasta un `80vw`.
+  * **Teléfonos Móviles (`@media (max-width: 600px)` y `@media (max-width: 450px)`):**
+    * **Formularios Dinámicos (`FormGenerator`, `EditFormGenerator`, `FormInput`):** Los contenedores de campo (`class-form-group`) se expanden al 100% del ancho de pantalla. Los inputs, selectores y textareas fijan un `font-size: 1rem` (16px) como mínimo para evitar que navegadores móviles (especialmente Safari en iOS) apliquen zoom automático invasivo al enfocar el campo. Los botones de acción (`submit` y `cancel`) se ajustan a ancho completo con *box-sizing* para facilitar la pulsación táctil.
+    * **Tablas y Edición Masiva (`ListGenerator`, `MassEditWizard`):** Las barras de herramientas horizontales (barra de ordenación `sort-bar` y barra de acciones por lotes `mass-actions-bar`) transicionan dinámicamente a disposición vertical en columna (`flex-direction: column; align-items: stretch`). El modal de edición masiva se expande hasta el `96vw` con bordes redondeados adaptados, y el tamaño de fuente y espaciado de las celdas se ajusta mediante `vw` y `vh` para evitar cualquier desbordamiento horizontal.
+    * **Buscador Inteligente (`SearchBar`):** En pantallas pequeñas, el buscador reorganiza y centra las píldoras de filtrado, ubicando la barra de texto en su propia fila completa (100% de ancho) con botón de lupa posicionado de forma accesible.
+    * **Accesibilidad y Sensibilidad al Movimiento:** Inclusión de `@media (prefers-reduced-motion: reduce)` en componentes animados (`DoNotHackMyApp`) para usuarios con preferencias de reducción de movimiento en el sistema operativo.
 
 ---
 
@@ -334,6 +353,7 @@ A comprehensive, strongly typed full-stack ecosystem built with **Spring Boot 3 
    - [4.6. DoNotHackMyApp / RouteGuard](#46-donothackmyapp--routeguard-1)
    - [4.7. ButtonLink (Clean Navigation)](#47-buttonlink-1)
    - [4.8. WebSocketManager (Real-Time STOMP Client)](#48-websocketmanager-1)
+   - [4.9. Responsive Design & Adaptive CSS (vh, vw, rem & Media Queries)](#49-responsive-design--adaptive-css)
 5. [Automated Testing & Code Quality](#5-automated-testing--code-quality)
 6. [License, Authorship & Intellectual Property](#6-license-authorship--intellectual-property)
 
@@ -466,6 +486,8 @@ The `jwt` package groups 3 essential components for JSON Web Token authenticatio
 
 ## 4. Frontend Layer: Dynamic UI Generators
 
+All frontend UI components are built with a **responsive and adaptive design architecture**, powered by fluid relative units (`vh`, `vw`, `rem`) and targeted media queries optimized across all viewports and devices (mobile, tablet, and desktop).
+
 ### 4.1. FormGenerator vs Formik
 * **Performance:** Formik keeps input state in React component state, causing full form re-renders on **every single keystroke**. `FormGenerator` leverages **React Hook Form** (uncontrolled ref subscriptions), maintaining optimal zero-re-render typing performance.
 * **Zero Boilerplate:** Forms are declaratively generated from a `FieldDef[]` configuration array instead of dozens of manual JSX tags.
@@ -535,6 +557,22 @@ wsManager.addSubscription<UpdatePayload>('matches/dashboard', (data) => {
 
 wsManager.initConnection();
 ```
+
+### 4.9. Responsive Design & Adaptive CSS
+
+All frontend UI components are built with a **fully responsive and adaptive design**, providing seamless layout restructuring and visual ergonomics across desktops, laptops, tablets, and smartphones:
+
+* **Fluid Relative Units (`vh`, `vw`, `rem`):**
+  * **Elimination of Hardcoded Pixels (`px`):** Replaced static pixel dimensions throughout all component stylesheets with fluid, scalable units, eliminating layout breakage across diverse display densities and aspect ratios.
+  * **`rem` for Typography and Element Spacing:** Font sizes, margins, paddings, border radii, and stroke widths are expressed in `rem`. This ensures components automatically respect user browser font scaling and zoom accessibility preferences (*root font size*).
+  * **`vh` and `vw` for Viewport-Proportional Dimensions:** Modal dialog heights (`max-height: 90vh`), maximum modal widths (`max-width: 52.08vw`), container paddings, and background scenes scale relative to the actual viewport height and width, keeping proportions balanced on ultra-wide monitors and compact laptop screens alike.
+* **Targeted Media Queries Across Breakpoints:**
+  * **Tablets (`@media (max-width: 1024px)`):** Enlarged interactive touch targets, scaled button heights (`cool-button`), extended search input widths (`SearchBar`), and widened batch edit modals (`MassEditWizard`) up to `80vw`.
+  * **Mobile Phones (`@media (max-width: 600px)` & `@media (max-width: 450px)`):**
+    * **Dynamic Forms (`FormGenerator`, `EditFormGenerator`, `FormInput`):** Form groups (`class-form-group`) expand to 100% of the available screen width. Text inputs, selects, and textareas enforce a minimum `font-size: 1rem` (16px) to eliminate unwanted automatic viewport zooming on focus in mobile browsers (particularly iOS Safari). Action buttons (`submit` and `cancel`) adapt to full-width layouts with proper box-sizing for touch ergonomics.
+    * **Tables & Bulk Editing (`ListGenerator`, `MassEditWizard`):** The column sort bar (`sort-bar`) and mass actions toolbar (`mass-actions-bar`) transition from horizontal layouts to vertical columns (`flex-direction: column; align-items: stretch`). Transactional modals expand up to `96vw` with adjusted corner radii, and table cells leverage `vw`/`vh` sizing to prevent horizontal overflow.
+    * **Advanced Search Engine (`SearchBar`):** Search input expands to its own full-width row with the search magnifier button positioned comfortably inside, while filter dropdown pills and toggles center cleanly above it.
+    * **Accessibility:** Integrated `@media (prefers-reduced-motion: reduce)` in animated interfaces (`DoNotHackMyApp`) for motion-sensitive users.
 
 ---
 

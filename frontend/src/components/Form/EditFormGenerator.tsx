@@ -82,8 +82,8 @@ export function EditFormGenerator<T extends FieldValues>({entityToEdit, onSubmit
       {extraBeforeSubmit}
 
       <div className="custom-button-row">
-        {cancelButtonActivated && <button type="button" className="auth-button" onClick={() => navigate(parentPath)}> Cancel</button>}
-        <button type="submit" className="auth-button" disabled={isSubmitting}>
+        {cancelButtonActivated && <button type="button" className="cool-button" onClick={() => navigate(parentPath)}> Cancel</button>}
+        <button type="submit" className="cool-button" disabled={isSubmitting}>
           {isSubmitting ? loadingText : submitText}
         </button>
       </div>
