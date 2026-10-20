@@ -27,8 +27,5 @@ vi.mock("./services/token.service.ts", () => ({
         updateLocalAccessToken: vi.fn(),
     },
 }));
-// Mock jwt-decode
-vi.mock("jwt-decode", () => ({
-    default: vi.fn(() => ({ authorities: ["ADMIN"] })),
-}));
+
 

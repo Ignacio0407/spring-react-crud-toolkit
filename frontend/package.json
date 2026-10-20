@@ -6,6 +6,11 @@
   "author": "Ignacio Gutiérrez Serrera",
   "license": "SEE LICENSE IN LICENSE",
   "main": "src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build": "vite build"
+  },
   "peerDependencies": {
     "@fortawesome/fontawesome-free": "^7.3.1",
     "bootstrap": "^5.3.8",
