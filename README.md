@@ -19,24 +19,30 @@ Un ecosistema integral y fuertemente tipado desarrollado en **Spring Boot 3 (Jav
 ## 📑 Tabla de Contenidos (Español)
 1. [Visión General de la Arquitectura Full-Stack](#1-visión-general-de-la-arquitectura-full-stack)
 2. [Sinergia End-to-End: Contrato Cliente-Servidor](#2-sinergia-end-to-end-contrato-cliente-servidor)
-3. [Capa Backend: Componentes Genéricos y Seguridad](#3-capa-backend-componentes-genéricos-y-seguridad)
-   - [3.1. BaseRepository y Patrón DTO](#31-baserepositoryt-d-i)
-   - [3.2. BaseService y Hooks de Seguridad Opcionales](#32-baseservicet-i-y-patrón-template-method)
-   - [3.3. BaseRestController y Edición Masiva (UpdateSomeDTO)](#33-baserestcontroller-y-updatesomedto)
-   - [3.4. Seguridad en Tiempo Real: WebSocketSecurityInterceptor](#34-seguridad-en-tiempo-real-websocketsecurityinterceptor)
-   - [3.5. Desacoplamiento de Identidad y Utilidades JWT](#35-desacoplamiento-de-identidad-y-utilidades-jwt)
-4. [Capa Frontend: Generadores Dinámicos de UI](#4-capa-frontend-generadores-dinámicos-de-ui)
-   - [4.1. FormGenerator vs Formik (Eficiencia y Re-renders)](#41-formgenerator-vs-formik)
-   - [4.2. EditFormGenerator (Inferencia Automática de Esquemas)](#42-editformgenerator)
-   - [4.3. ListGenerator vs TanStack Table y AG Grid](#43-listgenerator-vs-tanstack-table-y-ag-grid)
-   - [4.4. MassEditWizard (Flujo Transaccional con Undo/Redo)](#44-masseditwizard)
-   - [4.5. SearchBar & SearchEngine (Caché LRU y Búsqueda Avanzada)](#45-searchbar--searchengine)
-   - [4.6. DoNotHackMyApp / RouteGuard](#46-donothackmyapp--routeguard)
-   - [4.7. ButtonLink (Navegación Limpia)](#47-buttonlink)
-   - [4.8. WebSocketManager (Cliente STOMP en Tiempo Real)](#48-websocketmanager)
-   - [4.9. Diseño Adaptable y CSS Responsive (vh, vw, rem y Media Queries)](#49-diseño-adaptable-y-css-responsive)
-5. [Pruebas Automatizadas y Calidad](#5-pruebas-automatizadas-y-calidad)
-6. [Licencia, Autoría y Propiedad Intelectual](#6-licencia-autoría-y-propiedad-intelectual)
+3. [Guía de Instalación e Integración (Automatizada y Manual)](#3-guía-de-instalación-e-integración-automatizada-y-manual)
+   - [3.1. Modelo de Integración: Proyectos Hermanos](#31-modelo-de-integración-proyectos-hermanos)
+   - [3.2. Automatización Multi-Fuente (Python, PowerShell y Bash)](#32-automatización-multi-fuente-python-powershell-y-bash)
+   - [3.3. Guía Rápida de Ejecución](#33-guía-rápida-de-ejecución)
+   - [3.4. Integración Manual Paso a Paso](#34-integración-manual-paso-a-paso)
+   - [3.5. Requisitos y Dependencias (pom.xml y package.json)](#35-requisitos-y-dependencias-pomxml-y-packagejson)
+4. [Capa Backend: Componentes Genéricos y Seguridad](#4-capa-backend-componentes-genéricos-y-seguridad)
+   - [4.1. BaseRepository y Patrón DTO](#41-baserepositoryt-d-i)
+   - [4.2. BaseService y Hooks de Seguridad Opcionales](#42-baseservicet-i-y-patrón-template-method)
+   - [4.3. BaseRestController y Edición Masiva (UpdateSomeDTO)](#43-baserestcontroller-y-updatesomedto)
+   - [4.4. Seguridad en Tiempo Real: WebSocketSecurityInterceptor](#44-seguridad-en-tiempo-real-websocketsecurityinterceptor)
+   - [4.5. Desacoplamiento de Identidad y Utilidades JWT](#45-desacoplamiento-de-identidad-y-utilidades-jwt)
+5. [Capa Frontend: Generadores Dinámicos de UI](#5-capa-frontend-generadores-dinámicos-de-ui)
+   - [5.1. FormGenerator vs Formik (Eficiencia y Re-renders)](#51-formgenerator-vs-formik)
+   - [5.2. EditFormGenerator (Inferencia Automática de Esquemas)](#52-editformgenerator)
+   - [5.3. ListGenerator vs TanStack Table y AG Grid](#53-listgenerator-vs-tanstack-table-y-ag-grid)
+   - [5.4. MassEditWizard (Flujo Transaccional con Undo/Redo)](#54-masseditwizard)
+   - [5.5. SearchBar & SearchEngine (Caché LRU y Búsqueda Avanzada)](#55-searchbar--searchengine)
+   - [5.6. DoNotHackMyApp / RouteGuard](#56-donothackmyapp--routeguard)
+   - [5.7. ButtonLink (Navegación Limpia)](#57-buttonlink)
+   - [5.8. WebSocketManager (Cliente STOMP en Tiempo Real)](#58-websocketmanager)
+   - [5.9. Diseño Adaptable y CSS Responsive (vh, vw, rem y Media Queries)](#59-diseño-adaptable-y-css-responsive)
+6. [Pruebas Automatizadas y Calidad](#6-pruebas-automatizadas-y-calidad)
+7. [Licencia, Autoría y Propiedad Intelectual](#7-licencia-autoría-y-propiedad-intelectual)
 
 ---
 
@@ -88,14 +94,184 @@ A diferencia de librerías aisladas de frontend o backend, este framework define
 
 ---
 
-## 3. Capa Backend: Componentes Genéricos y Seguridad
+## 3. Guía de Instalación e Integración (Automatizada y Manual)
 
-### 3.1. `BaseRepository<T, D, I>`
+Este toolkit ha sido concebido como un acelerador de código reutilizable. Para que cualquier proyecto Spring Boot + React pueda heredar o consumir sus componentes genéricos, controladores, servicios, repositorios, seguridad WebSocket y generadores de UI, se ha diseñado una metodología de importación rápida y **100% automatizada a través de diferentes fuentes**.
+
+### 3.1. Modelo de Integración: Proyectos Hermanos
+
+El principio de integración consiste en situar el repositorio de este toolkit en la **misma carpeta contenedora (directorio padre)** que el proyecto downstream que desea heredar de él:
+
+```text
+workspace-proyectos/
+├── spring-react-crud-toolkit/      <-- Repositorio clonado de este toolkit
+│   ├── backend/...
+│   ├── frontend/...
+│   └── scripts/                    <-- Scripts de integración automatizada
+│       ├── install-toolkit.py      <-- Automatización en Python (Multiplataforma)
+│       ├── install-toolkit.ps1     <-- Automatización en PowerShell (Windows)
+│       └── install-toolkit.sh      <-- Automatización en Bash (Linux / macOS / WSL)
+└── tu-proyecto-spring-boot/        <-- Tu proyecto actual (ej. Upstream-Board-Game, Petclinic, etc.)
+    ├── pom.xml
+    └── src/main/java/com/empresa/app/...
+```
+
+### 3.2. Automatización Multi-Fuente (Python, PowerShell y Bash)
+
+Para maximizar la portabilidad y adaptarse al entorno de desarrollo de cualquier equipo, el proceso de instalación y refactorización está **totalmente automatizado mediante tres scripts nativos independientes**:
+
+| Script | Entorno / Plataforma | Características Clave |
+| :--- | :--- | :--- |
+| 🐍 [`scripts/install-toolkit.py`](scripts/install-toolkit.py) | **Multiplataforma** (Windows, Linux, macOS) | Requiere Python 3.6+. Sin dependencias externas. Soporte UTF-8 nativo y modo interactivo guiado. |
+| 🪟 [`scripts/install-toolkit.ps1`](scripts/install-toolkit.ps1) | **Windows** (PowerShell 5.1 & PowerShell Core 7+) | Integración nativa en terminales Windows. Detección automática de proyectos y generación UTF-8 sin BOM. |
+| 🐧 [`scripts/install-toolkit.sh`](scripts/install-toolkit.sh) | **Linux / macOS / WSL / Git Bash** | Script Bash POSIX estándar con coloreado de terminal y pipeline robusto. |
+
+#### ¿Qué realizan estos scripts automáticamente?
+1. **Detección inteligente del proyecto y su arquitectura:** Escanean el directorio padre y localizan la carpeta del proyecto destino, detectando tanto layouts monomódulo (`src/main/java`) como multimódulo (`backend/src/main/java`).
+2. **Inferencia automática del paquete base:** Inspeccionan la clase principal anotada con `@SpringBootApplication` (por ejemplo `org.springframework.samples.petclinic` o `es.us.dp1.l4_01_24_25.upstream`) y configuran automáticamente el nuevo espacio de nombres (por defecto `<paquete_base>.toolkit`).
+3. **Copia estructural de artefactos:** Copian las 17 clases del backend `main` y las 21 suites de prueba de `test` a los directorios que corresponden a la jerarquía de paquetes del proyecto destino.
+4. **Refactorización automática de código (*Package & Import Rewriting*):** Renombran en caliente todas las declaraciones `package toolkit...;` y las sentencias `import toolkit...;` para que coincidan con el nuevo paquete de tu proyecto, eliminando cualquier error de importación o colisión de paquetes.
+5. **Copia de configuración de test:** Si el proyecto destino no dispone de `src/test/resources/application.properties`, se proporciona la configuración en memoria optimizada para H2 con `spring.sql.init.mode=never`.
+6. **Integración opcional de Frontend (`--include-frontend` / `-f`):** Copian de manera sincronizada los componentes React (`FormGenerator`, `EditFormGenerator`, `ListGenerator`, `MassEditWizard`, `SearchBar`, `webSocketManager`, `DoNotHackMyApp`, `ButtonLink`) y utilidades a la carpeta `frontend/src` de tu aplicación.
+
+---
+
+### 3.3. Guía Rápida de Ejecución
+
+#### Paso 1: Clonar el toolkit junto a tu proyecto
+Sitúate en la carpeta contenedora donde reside tu proyecto actual y clona este repositorio:
+```bash
+# Navega al directorio donde reside tu proyecto
+cd /ruta/hacia/tus-proyectos/
+
+# Clona el repositorio del toolkit (quedará al mismo nivel de carpetas que tu proyecto)
+git clone https://github.com/Ignacio0407/spring-react-crud-toolkit.git
+```
+
+#### Paso 2: Ejecutar el script automatizado
+
+Elige cualquiera de las tres opciones según tu sistema operativo o preferencia:
+
+##### Opción A: Python (Multiplataforma - Recomendada)
+```bash
+# Modo interactivo (te preguntará el proyecto destino y mostrará un menú):
+python spring-react-crud-toolkit/scripts/install-toolkit.py
+
+# O bien en una sola línea indicando proyecto y activando frontend:
+python spring-react-crud-toolkit/scripts/install-toolkit.py --target mi-proyecto --include-frontend
+```
+
+##### Opción B: PowerShell (Windows)
+```powershell
+# Modo interactivo guiado:
+powershell -ExecutionPolicy Bypass -File .\spring-react-crud-toolkit\scripts\install-toolkit.ps1
+
+# O bien indicando parámetros directos:
+powershell -ExecutionPolicy Bypass -File .\spring-react-crud-toolkit\scripts\install-toolkit.ps1 -TargetProject "mi-proyecto" -IncludeFrontend
+```
+
+##### Opción C: Bash (Linux / macOS / WSL / Git Bash)
+```bash
+# Modo interactivo guiado:
+bash spring-react-crud-toolkit/scripts/install-toolkit.sh
+
+# O bien indicando flags directos:
+bash spring-react-crud-toolkit/scripts/install-toolkit.sh -t mi-proyecto -f
+```
+
+> [!TIP]
+> **Modo Dry-Run:** Todos los scripts soportan el flag `--dry-run` (o `-d` / `-DryRun`) para previsualizar exactamente qué archivos se copiarán y cómo quedarán los paquetes antes de realizar cualquier modificación en disco.
+
+---
+
+### 3.4. Integración Manual Paso a Paso
+
+Si prefieres realizar la integración manualmente sin ejecutar los scripts, el flujo de trabajo es el siguiente:
+
+1. **Copiar las clases del Backend Main:**
+   Copia el contenido de `backend/src/main/java/toolkit/` dentro del directorio de código de tu proyecto, ubicándolo en `src/main/java/<tu/paquete/base>/toolkit/`.
+2. **Copiar las suites de prueba:**
+   Copia el contenido de `backend/src/test/java/toolkit/` en `src/test/java/<tu/paquete/base>/toolkit/`.
+3. **Refactorizar `package` e `import`:**
+   En todos los archivos Java copiados, reemplaza mediante la función "Replace in Files" de tu editor:
+   - `package toolkit;` &rarr; `package <tu.paquete.base>.toolkit;`
+   - `package toolkit.` &rarr; `package <tu.paquete.base>.toolkit.`
+   - `import toolkit.` &rarr; `import <tu.paquete.base>.toolkit.`
+   - `import static toolkit.` &rarr; `import static <tu.paquete.base>.toolkit.`
+4. **(Opcional) Copiar Frontend:**
+   Copia la carpeta `frontend/src/components/` y las utilidades `interfaces/`, `services/`, `util/` a la carpeta `frontend/src/` de tu aplicación React.
+
+---
+
+### 3.5. Requisitos y Dependencias (pom.xml y package.json)
+
+Para que todos los componentes y pruebas compilen en el proyecto destino, asegúrate de contar con las siguientes dependencias:
+
+#### En `pom.xml` (Backend Spring Boot):
+```xml
+<!-- Dependencias estándar de Spring Boot 3 -->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-web</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-data-jpa</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-validation</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-security</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-websocket</artifactId>
+</dependency>
+
+<!-- Utilidades JWT (JJWT 0.12.x) -->
+<dependency>
+    <groupId>io.jsonwebtoken</groupId>
+    <artifactId>jjwt-api</artifactId>
+    <version>0.12.6</version>
+</dependency>
+<dependency>
+    <groupId>io.jsonwebtoken</groupId>
+    <artifactId>jjwt-impl</artifactId>
+    <version>0.12.6</version>
+    <scope>runtime</scope>
+</dependency>
+<dependency>
+    <groupId>io.jsonwebtoken</groupId>
+    <artifactId>jjwt-jackson</artifactId>
+    <version>0.12.6</version>
+    <scope>runtime</scope>
+</dependency>
+```
+
+#### En `package.json` (Frontend React, si se integra la UI):
+```bash
+npm install @stomp/stompjs sockjs-client react-hook-form reactstrap bootstrap react-router-dom @fortawesome/fontawesome-free
+```
+
+#### Verificación Inmediata:
+Ejecuta la suite de pruebas en el proyecto destino para certificar la correcta integración:
+```bash
+mvn test
+```
+
+---
+
+## 4. Capa Backend: Componentes Genéricos y Seguridad
+
+### 4.1. `BaseRepository<T, D, I>`
 Extensión de `JpaRepository<T, I>` con soporte nativo de proyecciones DTO:
 * `List<D> findAllAsDTO()`: Consultas directas optimizadas que evitan la sobrecarga de hidratación JPA.
 * `Optional<D> findByIdAsDTO(I id)`: Búsqueda individual desacoplada del modelo de base de datos.
 
-### 3.2. `BaseService<T, I>` y Patrón Template Method
+### 4.2. `BaseService<T, I>` y Patrón Template Method
 Servicio base transaccional (`@Transactional`) con operaciones CRUD completas y soporte para **hooks de seguridad y validación opcionales**:
 
 ```java
@@ -128,7 +304,7 @@ public abstract class BaseService<T, I> {
 }
 ```
 
-### 3.3. `BaseRestController` y `UpdateSomeDTO`
+### 4.3. `BaseRestController` y `UpdateSomeDTO`
 Expone endpoints estandarizados de forma automática:
 * `GET /`: Listado completo.
 * `GET /{id}`: Búsqueda por identificador con control de `ResourceNotFoundException`.
@@ -139,14 +315,14 @@ Expone endpoints estandarizados de forma automática:
 
 Las variantes `BaseServiceWithDTO` y `BaseRestControllerWithDTO` permiten desacoplar completamente la capa de persistencia de la capa de transporte mediante `EntityMapper<T, D>`.
 
-### 3.4. Seguridad en Tiempo Real: `WebSocketSecurityInterceptor`
+### 4.4. Seguridad en Tiempo Real: `WebSocketSecurityInterceptor`
 Componente crítico basado en `ChannelInterceptor` para asegurar el canal STOMP / WebSocket (frecuentemente desprotegido en aplicaciones web):
 1. **Autenticación en Handshake (`CONNECT`):** Valida tokens JWT Bearer presentes en las cabeceras nativas antes de permitir la sesión WebSocket y establece el `SecurityContextHolder`.
 2. **Defensa contra DoS (`Rate Limiting`):** Implementa un contador atómico por ventana de tiempo (`AtomicInteger` + `ConcurrentHashMap`) limitando el tráfico por usuario (máximo 60 msg/min) para evitar saturación del broker.
 3. **Control de Tamaño de Payload:** Rechaza mensajes superiores a 64 KB previniendo ataques de agotamiento de memoria o inyección masiva.
 4. **Validación de Rutas:** Verifica destinos (`/topic/...`) y valida que los identificadores de ruta sean numéricos.
 
-### 3.5. Desacoplamiento de Identidad y Utilidades JWT
+### 4.5. Desacoplamiento de Identidad y Utilidades JWT
 
 #### Desacoplamiento Arquitectónico del Modelo de Usuario
 Para maximizar la reusabilidad como librería/acelerador y garantizar que el framework no condicione el diseño de base de datos de las aplicaciones que lo utilicen, el backend ha **desacoplado completamente la gestión de identidades**:
@@ -165,11 +341,11 @@ El paquete `jwt` suministra 3 componentes esenciales para la seguridad basada en
 
 ---
 
-## 4. Capa Frontend: Generadores Dinámicos de UI
+## 5. Capa Frontend: Generadores Dinámicos de UI
 
 Todos los componentes visuales del frontend cuentan con una arquitectura de **diseño adaptable (*responsive*)** implementada mediante unidades relativas fluidas (`vh`, `vw`, `rem`) y *media queries* optimizadas para cualquier resolución y dispositivo (móvil, tableta y escritorio).
 
-### 4.1. FormGenerator vs Formik
+### 5.1. FormGenerator vs Formik
 * **Rendimiento:** Formik maneja el estado de cada input en React State, re-renderizando todo el formulario en **cada tecla pulsada**. `FormGenerator` se basa en **React Hook Form** (referencias no controladas y suscripciones aisladas), manteniendo cero re-renders innecesarios.
 * **Eliminación de Boilerplate:** El formulario se describe mediante un array declarativo `FieldDef[]` en lugar de decenas de etiquetas JSX manuales.
 
@@ -188,33 +364,33 @@ const userFields: FieldDef[] = [
 />
 ```
 
-### 4.2. EditFormGenerator
+### 5.2. EditFormGenerator
 Detecta automáticamente el tipo de dato de las entidades (texto, numérico, booleano/checkbox, fecha, select, password, email) mediante introspección (`buildFieldsFromEntity`), creando el formulario de edición sin requerir configuración manual de campos.
 
-### 4.3. ListGenerator vs TanStack Table y AG Grid
+### 5.3. ListGenerator vs TanStack Table y AG Grid
 * Frente a **TanStack Table** (que es 100% *headless* y exige programar toda la UI desde cero), `ListGenerator` proporciona una interfaz interactiva lista para producción.
 * Frente a **AG Grid** (cuyo bundle es muy pesado y exige licencias de pago para edición avanzada), `ListGenerator` es ligero y aporta su propio asistente de edición en lote.
 
-### 4.4. MassEditWizard
+### 5.4. MassEditWizard
 Permite navegar y editar de forma guiada una colección de registros seleccionados:
 * Historial con pila de **Undo / Redo** por cada entidad (`EditTuple<T>`).
 * Comparación de estados (`hasChanges`) para evitar tráfico innecesario.
 * Modal de revisión comparativa (`ReviewModal`) previa al envío al endpoint `/some`.
 * Atajos de teclado: `Ctrl + A` para seleccionar los registros visibles de la página y `Escape` para cancelar el asistente.
 
-### 4.5. SearchBar & SearchEngine
+### 5.5. SearchBar & SearchEngine
 Motor de búsqueda en cliente desacoplado y de alto rendimiento:
 * Soporta **rutas anidadas** (`player.profile.nickname`).
 * Operadores lógicos `AND` / `OR` y modos de coincidencia (`contains`, `exact`, `startsWith`).
 * Optimización con **Caché LRU** (`cacheCapacity = 200`) y **Debounce** (`300ms`).
 
-### 4.6. DoNotHackMyApp / RouteGuard
+### 5.6. DoNotHackMyApp / RouteGuard
 Interrumpe la renderización de vistas si el usuario no cuenta con los roles o autoridades requeridas, redirigiendo de forma transparente a la pantalla de acceso no autorizado.
 
-### 4.7. ButtonLink
+### 5.7. ButtonLink
 Micro-componente utilitario que unifica un botón Reactstrap con la navegación SPA de React Router en una sola línea limpia.
 
-### 4.8. WebSocketManager
+### 5.8. WebSocketManager
 Cliente STOMP fuertemente tipado sobre `@stomp/stompjs` y `sockjs-client` que centraliza la comunicación bidireccional en tiempo real:
 * **Autenticación Nativa Integrada:** Inyecta automáticamente el token JWT en las cabeceras `Authorization: Bearer <token>` durante el handshake `CONNECT`.
 * **Transporte Dual Flexible:** Permite alternar entre WebSockets nativos (`WebSocket`) y retrocompatibilidad con `SockJS` según la configuración.
@@ -239,7 +415,7 @@ wsManager.addSubscription<UpdatePayload>('matches/dashboard', (data) => {
 wsManager.initConnection();
 ```
 
-### 4.9. Diseño Adaptable y CSS Responsive
+### 5.9. Diseño Adaptable y CSS Responsive
 
 Todos los componentes de interfaz de usuario del frontend están diseñados para ser **completamente adaptables (*responsive*)**, garantizando una visualización y ergonomía óptimas tanto en pantallas de escritorio y portátiles como en tabletas y dispositivos móviles:
 
@@ -257,7 +433,7 @@ Todos los componentes de interfaz de usuario del frontend están diseñados para
 
 ---
 
-## 5. Pruebas Automatizadas y Calidad
+## 6. Pruebas Automatizadas y Calidad
 
 El toolkit destaca por un compromiso riguroso con la calidad y la fiabilidad del software, respaldado por un total de **242 pruebas automatizadas (101 en Backend + 141 en Frontend)** que cubren unitariamente y en integración cada capa arquitectónica:
 
@@ -314,7 +490,7 @@ Ubicadas junto a cada componente en `frontend/src/components/`, cubriendo compor
 
 ---
 
-## 6. Licencia, Autoría y Propiedad Intelectual
+## 7. Licencia, Autoría y Propiedad Intelectual
 
 ### Autoría
 * **Autor Original:** Ignacio Gutiérrez Serrera
@@ -338,24 +514,30 @@ A comprehensive, strongly typed full-stack ecosystem built with **Spring Boot 3 
 ## 📑 Table of Contents (English)
 1. [Full-Stack Architecture Overview](#1-full-stack-architecture-overview)
 2. [End-to-End Synergy: Client-Server Contract](#2-end-to-end-synergy-client-server-contract)
-3. [Backend Layer: Generic Components & Security](#3-backend-layer-generic-components--security)
-   - [3.1. BaseRepository & DTO Pattern](#31-baserepositoryt-d-i-1)
-   - [3.2. BaseService & Template Method Security Hooks](#32-baseservicet-i--template-method-security-hooks)
-   - [3.3. BaseRestController & Batch Editing (UpdateSomeDTO)](#33-baserestcontroller--updatesomedto)
-   - [3.4. Real-Time Security: WebSocketSecurityInterceptor](#34-real-time-security-websocketsecurityinterceptor)
-   - [3.5. User Identity Decoupling & Ready-to-Use JWT Utilities](#35-user-identity-decoupling--ready-to-use-jwt-utilities)
-4. [Frontend Layer: Dynamic UI Generators](#4-frontend-layer-dynamic-ui-generators)
-   - [4.1. FormGenerator vs Formik (Efficiency & Re-renders)](#41-formgenerator-vs-formik-1)
-   - [4.2. EditFormGenerator (Automatic Schema Inference)](#42-editformgenerator-1)
-   - [4.3. ListGenerator vs TanStack Table & AG Grid](#43-listgenerator-vs-tanstack-table--ag-grid)
-   - [4.4. MassEditWizard (Transactional Flow with Undo/Redo)](#44-masseditwizard-1)
-   - [4.5. SearchBar & SearchEngine (LRU Cache & Advanced Search)](#45-searchbar--searchengine-1)
-   - [4.6. DoNotHackMyApp / RouteGuard](#46-donothackmyapp--routeguard-1)
-   - [4.7. ButtonLink (Clean Navigation)](#47-buttonlink-1)
-   - [4.8. WebSocketManager (Real-Time STOMP Client)](#48-websocketmanager-1)
-   - [4.9. Responsive Design & Adaptive CSS (vh, vw, rem & Media Queries)](#49-responsive-design--adaptive-css)
-5. [Automated Testing & Code Quality](#5-automated-testing--code-quality)
-6. [License, Authorship & Intellectual Property](#6-license-authorship--intellectual-property)
+3. [Installation & Integration Guide (Automated & Manual)](#3-installation--integration-guide-automated--manual)
+   - [3.1. Sibling Directory Integration Model](#31-sibling-directory-integration-model)
+   - [3.2. Multi-Platform Automation (Python, PowerShell & Bash)](#32-multi-platform-automation-python-powershell--bash)
+   - [3.3. Step-by-Step Quickstart Execution](#33-step-by-step-quickstart-execution)
+   - [3.4. Alternative Manual Integration Workflow](#34-alternative-manual-integration-workflow)
+   - [3.5. Required Dependencies (pom.xml & package.json)](#35-required-dependencies-pomxml--packagejson)
+4. [Backend Layer: Generic Components & Security](#4-backend-layer-generic-components--security)
+   - [4.1. BaseRepository & DTO Pattern](#41-baserepositoryt-d-i-1)
+   - [4.2. BaseService & Template Method Security Hooks](#42-baseservicet-i--template-method-security-hooks)
+   - [4.3. BaseRestController & Batch Editing (UpdateSomeDTO)](#43-baserestcontroller--updatesomedto)
+   - [4.4. Real-Time Security: WebSocketSecurityInterceptor](#44-real-time-security-websocketsecurityinterceptor)
+   - [4.5. User Identity Decoupling & Ready-to-Use JWT Utilities](#45-user-identity-decoupling--ready-to-use-jwt-utilities)
+5. [Frontend Layer: Dynamic UI Generators](#5-frontend-layer-dynamic-ui-generators)
+   - [5.1. FormGenerator vs Formik (Efficiency & Re-renders)](#51-formgenerator-vs-formik-1)
+   - [5.2. EditFormGenerator (Automatic Schema Inference)](#52-editformgenerator-1)
+   - [5.3. ListGenerator vs TanStack Table & AG Grid](#53-listgenerator-vs-tanstack-table--ag-grid)
+   - [5.4. MassEditWizard (Transactional Flow with Undo/Redo)](#54-masseditwizard-1)
+   - [5.5. SearchBar & SearchEngine (LRU Cache & Advanced Search)](#55-searchbar--searchengine-1)
+   - [5.6. DoNotHackMyApp / RouteGuard](#56-donothackmyapp--routeguard-1)
+   - [5.7. ButtonLink (Clean Navigation)](#57-buttonlink-1)
+   - [5.8. WebSocketManager (Real-Time STOMP Client)](#58-websocketmanager-1)
+   - [5.9. Responsive Design & Adaptive CSS (vh, vw, rem & Media Queries)](#59-responsive-design--adaptive-css)
+6. [Automated Testing & Code Quality](#6-automated-testing--code-quality)
+7. [License, Authorship & Intellectual Property](#7-license-authorship--intellectual-property)
 
 ---
 
@@ -407,14 +589,182 @@ Unlike isolated frontend components or backend libraries, this framework establi
 
 ---
 
-## 3. Backend Layer: Generic Components & Security
+## 3. Installation & Integration Guide (Automated & Manual)
 
-### 3.1. `BaseRepository<T, D, I>`
+This toolkit is designed as a modular software accelerator. To enable any Spring Boot + React project to inherit its generic CRUD abstractions, controllers, services, repositories, real-time WebSocket security, and dynamic UI generators, an automated import workflow has been established **across multiple native script environments**.
+
+### 3.1. Sibling Directory Integration Model
+
+The integration architecture requires placing this cloned toolkit repository inside the **same parent directory** as the consuming project:
+
+```text
+workspace-projects/
+├── spring-react-crud-toolkit/      <-- Cloned toolkit repository
+│   ├── backend/...
+│   ├── frontend/...
+│   └── scripts/                    <-- Automation scripts
+│       ├── install-toolkit.py      <-- Cross-platform Python script
+│       ├── install-toolkit.ps1     <-- Windows PowerShell script
+│       └── install-toolkit.sh      <-- Unix Bash script (Linux / macOS / WSL)
+└── your-spring-boot-project/       <-- Your application (e.g., Upstream-Board-Game, Petclinic, etc.)
+    ├── pom.xml
+    └── src/main/java/com/mycompany/app/...
+```
+
+### 3.2. Multi-Platform Automation (Python, PowerShell & Bash)
+
+To guarantee native performance across any operating system or developer setup, the integration is **fully automated through three dedicated scripts**:
+
+| Script | Environment / OS | Key Features |
+| :--- | :--- | :--- |
+| 🐍 [`scripts/install-toolkit.py`](scripts/install-toolkit.py) | **Cross-Platform** (Windows, Linux, macOS) | Requires Python 3.6+. Zero external dependencies. Native UTF-8 support and guided interactive menu. |
+| 🪟 [`scripts/install-toolkit.ps1`](scripts/install-toolkit.ps1) | **Windows** (PowerShell 5.1 & PowerShell 7+) | Native Windows terminal integration. Project auto-detection and UTF-8 without BOM output. |
+| 🐧 [`scripts/install-toolkit.sh`](scripts/install-toolkit.sh) | **Linux / macOS / WSL / Git Bash** | Standard POSIX Bash script with colored CLI output and reliable stream filtering. |
+
+#### What do these scripts automate for you?
+1. **Intelligent Project & Layout Detection:** Scans the parent directory to locate your destination project and detects whether it uses a single-module (`src/main/java`) or multi-module layout (`backend/src/main/java`).
+2. **Base Package Inference:** Scans Java source files for `@SpringBootApplication` to automatically discover your application's base package (e.g., `org.springframework.samples.petclinic` or `com.mycompany.app`) and configures `<base_package>.toolkit` as the target namespace.
+3. **Artifact Tree Copying:** Copies the 17 production classes from `main` and 21 test suites from `test` into the exact folder structure matching the target package.
+4. **On-the-Fly Code Refactoring (*Package & Import Rewriting*):** Dynamically rewrites all `package toolkit...;` declarations and `import toolkit...;` statements to match your project's new package structure, preventing compile errors and namespace clashes.
+5. **Test Configuration Copying:** Copies `src/test/resources/application.properties` with in-memory H2 settings and `spring.sql.init.mode=never` if missing.
+6. **Optional Frontend Integration (`--include-frontend` / `-f`):** Copies React UI components (`FormGenerator`, `EditFormGenerator`, `ListGenerator`, `MassEditWizard`, `SearchBar`, `webSocketManager`, `DoNotHackMyApp`, `ButtonLink`) and core utilities into your app's `frontend/src` directory.
+
+---
+
+### 3.3. Step-by-Step Quickstart Execution
+
+#### Step 1: Clone the toolkit alongside your project
+Navigate to the folder containing your application and clone the toolkit:
+```bash
+# Navigate to the workspace where your project resides
+cd /path/to/your-projects/
+
+# Clone spring-react-crud-toolkit as a sibling folder
+git clone https://github.com/Ignacio0407/spring-react-crud-toolkit.git
+```
+
+#### Step 2: Execute your preferred automation script
+
+##### Option A: Python (Cross-Platform - Recommended)
+```bash
+# Interactive guided mode (prompts for target and options):
+python spring-react-crud-toolkit/scripts/install-toolkit.py
+
+# Non-interactive / single-command execution:
+python spring-react-crud-toolkit/scripts/install-toolkit.py --target my-project --include-frontend
+```
+
+##### Option B: PowerShell (Windows)
+```powershell
+# Interactive mode:
+powershell -ExecutionPolicy Bypass -File .\spring-react-crud-toolkit\scripts\install-toolkit.ps1
+
+# Direct parameters:
+powershell -ExecutionPolicy Bypass -File .\spring-react-crud-toolkit\scripts\install-toolkit.ps1 -TargetProject "my-project" -IncludeFrontend
+```
+
+##### Option C: Bash (Linux / macOS / WSL / Git Bash)
+```bash
+# Interactive mode:
+bash spring-react-crud-toolkit/scripts/install-toolkit.sh
+
+# Direct flags:
+bash spring-react-crud-toolkit/scripts/install-toolkit.sh -t my-project -f
+```
+
+> [!TIP]
+> **Dry-Run Mode:** All scripts accept `--dry-run` (or `-d` / `-DryRun`) to preview copied files and package rewrites before making any changes on disk.
+
+---
+
+### 3.4. Alternative Manual Integration Workflow
+
+If you prefer to integrate the toolkit manually without running scripts:
+
+1. **Copy Backend Main Classes:**
+   Copy `backend/src/main/java/toolkit/` into your project under `src/main/java/<your/base/package>/toolkit/`.
+2. **Copy Test Suites:**
+   Copy `backend/src/test/java/toolkit/` into `src/test/java/<your/base/package>/toolkit/`.
+3. **Refactor Packages and Imports:**
+   Perform a global find-and-replace in your IDE/editor on the copied files:
+   - `package toolkit;` &rarr; `package <your.base.package>.toolkit;`
+   - `package toolkit.` &rarr; `package <your.base.package>.toolkit.`
+   - `import toolkit.` &rarr; `import <your.base.package>.toolkit.`
+   - `import static toolkit.` &rarr; `import static <your.base.package>.toolkit.`
+4. **(Optional) Copy Frontend:**
+   Copy `frontend/src/components/` and utility directories (`interfaces/`, `services/`, `util/`) to your React application's `frontend/src/` folder.
+
+---
+
+### 3.5. Required Dependencies (pom.xml & package.json)
+
+Ensure the following dependencies are included in your target application:
+
+#### In `pom.xml` (Backend Spring Boot):
+```xml
+<!-- Spring Boot 3 Core Starters -->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-web</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-data-jpa</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-validation</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-security</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-websocket</artifactId>
+</dependency>
+
+<!-- JJWT 0.12.x Dependencies -->
+<dependency>
+    <groupId>io.jsonwebtoken</groupId>
+    <artifactId>jjwt-api</artifactId>
+    <version>0.12.6</version>
+</dependency>
+<dependency>
+    <groupId>io.jsonwebtoken</groupId>
+    <artifactId>jjwt-impl</artifactId>
+    <version>0.12.6</version>
+    <scope>runtime</scope>
+</dependency>
+<dependency>
+    <groupId>io.jsonwebtoken</groupId>
+    <artifactId>jjwt-jackson</artifactId>
+    <version>0.12.6</version>
+    <scope>runtime</scope>
+</dependency>
+```
+
+#### In `package.json` (Frontend React):
+```bash
+npm install @stomp/stompjs sockjs-client react-hook-form reactstrap bootstrap react-router-dom @fortawesome/fontawesome-free
+```
+
+#### Verification:
+Run the test suites in your project to verify successful integration:
+```bash
+mvn test
+```
+
+---
+
+## 4. Backend Layer: Generic Components & Security
+
+### 4.1. `BaseRepository<T, D, I>`
 Extends Spring Data `JpaRepository<T, I>` with out-of-the-box DTO projection methods:
 * `List<D> findAllAsDTO()`: Optimized queries that bypass JPA entity hydration overhead.
 * `Optional<D> findByIdAsDTO(I id)`: Single entity lookups decoupled from the persistence model.
 
-### 3.2. `BaseService<T, I>` & Template Method Security Hooks
+### 4.2. `BaseService<T, I>` & Template Method Security Hooks
 Transactional base service providing full CRUD operations along with **optional extensible security hooks**:
 
 ```java
@@ -447,7 +797,7 @@ public abstract class BaseService<T, I> {
 }
 ```
 
-### 3.3. `BaseRestController` & `UpdateSomeDTO`
+### 4.3. `BaseRestController` & `UpdateSomeDTO`
 Exposes standardized RESTful endpoints automatically:
 * `GET /`: Retrieve all entities.
 * `GET /{id}`: Retrieve by ID with automated `ResourceNotFoundException` handling.
@@ -458,14 +808,14 @@ Exposes standardized RESTful endpoints automatically:
 
 The `BaseServiceWithDTO` and `BaseRestControllerWithDTO` variants allow total decoupling of database models from network payloads using `EntityMapper<T, D>`.
 
-### 3.4. Real-Time Security: `WebSocketSecurityInterceptor`
+### 4.4. Real-Time Security: `WebSocketSecurityInterceptor`
 A crucial `ChannelInterceptor` safeguarding the STOMP / WebSocket channel (frequently neglected in web architectures):
 1. **Handshake Authentication (`CONNECT`):** Intercepts and cryptographically validates JWT Bearer tokens from native headers, establishing the `SecurityContextHolder`.
 2. **Anti-DoS Rate Limiting:** Implements concurrent atomic bucket tracking (`AtomicInteger` + `ConcurrentHashMap`), limiting traffic per user (maximum 60 messages/min) to prevent broker saturation.
 3. **Payload Size Guard:** Rejects frames exceeding 64 KB, mitigating memory exhaustion or buffer overflow vectors.
 4. **Route Destination Guard:** Verifies `/topic/...` destinations and enforces numerical constraints on resource parameters.
 
-### 3.5. User Identity Decoupling & Ready-to-Use JWT Utilities
+### 4.5. User Identity Decoupling & Ready-to-Use JWT Utilities
 
 #### Architectural Decoupling of the User Model
 To maximize flexibility and prevent opinionated database coupling, the backend **completely decouples user identity management**:
@@ -484,11 +834,11 @@ The `jwt` package groups 3 essential components for JSON Web Token authenticatio
 
 ---
 
-## 4. Frontend Layer: Dynamic UI Generators
+## 5. Frontend Layer: Dynamic UI Generators
 
 All frontend UI components are built with a **responsive and adaptive design architecture**, powered by fluid relative units (`vh`, `vw`, `rem`) and targeted media queries optimized across all viewports and devices (mobile, tablet, and desktop).
 
-### 4.1. FormGenerator vs Formik
+### 5.1. FormGenerator vs Formik
 * **Performance:** Formik keeps input state in React component state, causing full form re-renders on **every single keystroke**. `FormGenerator` leverages **React Hook Form** (uncontrolled ref subscriptions), maintaining optimal zero-re-render typing performance.
 * **Zero Boilerplate:** Forms are declaratively generated from a `FieldDef[]` configuration array instead of dozens of manual JSX tags.
 
@@ -507,33 +857,33 @@ const userFields: FieldDef[] = [
 />
 ```
 
-### 4.2. EditFormGenerator
+### 5.2. EditFormGenerator
 Introspects entity objects automatically (`buildFieldsFromEntity`) to infer input types (text, number, boolean/checkbox, date, select, password, email), generating full edit views with zero manual field mapping.
 
-### 4.3. ListGenerator vs TanStack Table & AG Grid
+### 5.3. ListGenerator vs TanStack Table & AG Grid
 * Compared to **TanStack Table** (purely headless, requiring hundreds of lines of UI markup from scratch), `ListGenerator` delivers a complete, production-ready interactive table.
 * Compared to **AG Grid** (heavy bundle footprint and high licensing fees for transactional features), `ListGenerator` is lightweight and includes a built-in step-by-step batch edit wizard.
 
-### 4.4. MassEditWizard
+### 5.4. MassEditWizard
 Guided step-by-step editing for selected collections of records:
 * Version history with an **Undo / Redo** stack per record (`EditTuple<T>`).
 * Dirty-checking (`hasChanges`) to eliminate redundant network payloads.
 * Pre-flight diff modal (`ReviewModal`) before dispatching batch updates to `/some`.
 * Keyboard shortcuts: `Ctrl + A` to toggle all visible rows, `Escape` to dismiss the wizard.
 
-### 4.5. SearchBar & SearchEngine
+### 5.5. SearchBar & SearchEngine
 A decoupled, high-performance client-side search engine:
 * Supports **nested object properties** (`player.profile.nickname`).
 * Logical operators (`AND` / `OR`) and matching modes (`contains`, `exact`, `startsWith`).
 * Optimized with **LRU In-Memory Caching** (`cacheCapacity = 200`) and **Debounce** (`300ms`).
 
-### 4.6. DoNotHackMyApp / RouteGuard
+### 5.6. DoNotHackMyApp / RouteGuard
 Halts view rendering and performs automatic redirection if the authenticated user lacks required roles or authorities.
 
-### 4.7. ButtonLink
+### 5.7. ButtonLink
 A clean micro-component uniting Reactstrap button styling with React Router SPA navigation in a single line.
 
-### 4.8. WebSocketManager
+### 5.8. WebSocketManager
 A strongly typed STOMP client built on `@stomp/stompjs` and `sockjs-client` providing centralized real-time bidirectional communication:
 * **Native Integrated Authentication:** Automatically injects JWT Bearer tokens into `Authorization: Bearer <token>` headers during the STOMP `CONNECT` handshake.
 * **Dual Transport Flexibility:** Easily toggles between native WebSockets (`WebSocket`) and `SockJS` fallback depending on infrastructure requirements.
@@ -558,7 +908,7 @@ wsManager.addSubscription<UpdatePayload>('matches/dashboard', (data) => {
 wsManager.initConnection();
 ```
 
-### 4.9. Responsive Design & Adaptive CSS
+### 5.9. Responsive Design & Adaptive CSS
 
 All frontend UI components are built with a **fully responsive and adaptive design**, providing seamless layout restructuring and visual ergonomics across desktops, laptops, tablets, and smartphones:
 
@@ -576,7 +926,7 @@ All frontend UI components are built with a **fully responsive and adaptive desi
 
 ---
 
-## 5. Automated Testing & Code Quality
+## 6. Automated Testing & Code Quality
 
 The toolkit demonstrates an exceptional commitment to software reliability and quality, backed by a total of **242 automated tests (101 Backend + 141 Frontend)** covering each architectural layer at both the unit and integration levels:
 
@@ -633,7 +983,7 @@ Colocated with components in `frontend/src/components/`, validating user behavio
 
 ---
 
-## 6. License, Authorship & Intellectual Property
+## 7. License, Authorship & Intellectual Property
 
 ### Authorship
 * **Original Author:** Ignacio Gutiérrez Serrera
