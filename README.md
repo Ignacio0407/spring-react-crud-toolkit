@@ -42,6 +42,9 @@ Un ecosistema integral y fuertemente tipado desarrollado en **Spring Boot 3 (Jav
    - [5.8. WebSocketManager (Cliente STOMP en Tiempo Real)](#58-websocketmanager)
    - [5.9. Diseño Adaptable y CSS Responsive (vh, vw, rem y Media Queries)](#59-diseño-adaptable-y-css-responsive)
 6. [Pruebas Automatizadas y Calidad](#6-pruebas-automatizadas-y-calidad)
+   - [6.1. Pruebas de Arquitectura con ArchUnit (Architecture-as-Code)](#61-pruebas-de-arquitectura-con-archunit-17-reglas--archunit-junit-5-tng-technology-consulting)
+   - [6.2. Pruebas Unitarias y de Integración Backend](#62-pruebas-unitarias-y-de-integración-backend-101-tests--junit-5-mockito-assertj-spring-mockmvc)
+   - [6.3. Pruebas en Frontend](#63-pruebas-en-frontend-141-tests--jest--vitest-react-testing-library-user-event)
 7. [Licencia, Autoría y Propiedad Intelectual](#7-licencia-autoría-y-propiedad-intelectual)
 
 ---
@@ -435,16 +438,41 @@ Todos los componentes de interfaz de usuario del frontend están diseñados para
 
 ## 6. Pruebas Automatizadas y Calidad
 
-El toolkit destaca por un compromiso riguroso con la calidad y la fiabilidad del software, respaldado por un total de **242 pruebas automatizadas (101 en Backend + 141 en Frontend)** que cubren unitariamente y en integración cada capa arquitectónica:
+El toolkit destaca por un compromiso riguroso con la calidad y la fiabilidad del software, respaldado por un total de **259 pruebas automatizadas (118 en Backend [101 funcionales + 17 reglas arquitectónicas ArchUnit] + 141 en Frontend)** que cubren unitariamente, en integración y a nivel de diseño cada capa del sistema:
 
 | Capa | Archivos / Suites | Tests Automatizados | Tecnologías Clave | Cobertura Funcional |
 | :--- | :---: | :---: | :--- | :--- |
-| **☕ Backend** | 11 suites (+ fixtures) | **101 tests** | JUnit 5, Mockito, AssertJ, Spring MockMvc, JPA | Ciclo CRUD, seguridad WebSocket/JWT, transacciones y entidades |
+| **☕ Backend (Arquitectura)** | 3 suites | **17 reglas** | ArchUnit (TNG), ASM, JUnit 5 | Architecture-as-Code, capas, ciclos, constructor injection y convenciones |
+| **☕ Backend (Unitario / Integración)** | 11 suites (+ fixtures) | **101 tests** | JUnit 5, Mockito, AssertJ, Spring MockMvc, JPA | Ciclo CRUD, seguridad WebSocket/JWT, transacciones y entidades |
 | **⚛️ Frontend** | 17 suites | **141 tests** | Jest / Vitest, React Testing Library, User Event | Formularios, tablas, wizards, búsqueda, seguridad y WebSockets |
-| **🏆 TOTAL** | **28 suites** | **242 tests** | *Stack Unificado Spring Boot + React* | **Cobertura integral End-to-End** |
+| **🏆 TOTAL** | **31 suites** | **259 tests** | *Stack Unificado Spring Boot + React* | **Cobertura integral End-to-End y Arquitectónica** |
 
 
-### ☕ Pruebas en Backend (**101 tests** | JUnit 5, Mockito, AssertJ, Spring MockMvc)
+### 6.1. Pruebas de Arquitectura con ArchUnit (**17 reglas** | ArchUnit JUnit 5, TNG Technology Consulting)
+Ubicadas en `backend/src/test/java/toolkit/architecture/`. ArchUnit (librería de código abierto originada en **TNG Technology Consulting**) implementa el paradigma **Architecture-as-Code** ("Arquitectura como Código") mediante **Funciones de Fitness Arquitectónicas** (*Architectural Fitness Functions*). Analiza directamente el bytecode compilado (`.class`) mediante **ASM** sin requerir inicializar el contenedor Spring, garantizando en milisegundos que el diseño de software no sufra degradación (*architectural drift* o erosión):
+
+* **`LayerArchitectureTest.java` (5 reglas de capas y dependencias):**
+  * **Aislamiento Estricto de Capas (`layeredArchitecture()`):** Define fronteras formales para `Controllers` (`..controller..`), `Services` (`..service..`), `Repositories` (`..repository..`), `Models` (`..model..`) y `Security` (`..security..`, `..configuration..`).
+  * **Prohibición de Bypass:** Los controladores tienen prohibido acceder directamente a repositorios (`noClasses().that().resideInAPackage("..controller..").should().dependOnClassesThat().resideInAPackage("..repository..")`), forzando a que toda persistencia pase por la capa de servicio para preservar reglas de negocio y transaccionalidad (`@Transactional`).
+  * **Desacoplamiento Web:** Los servicios no pueden depender de controladores de presentación ni clases HTTP.
+  * **Independencia de Persistencia:** Los repositorios no pueden depender de capas superiores de servicio.
+  * **Grafos Acíclicos de Paquetes (`slices().matching("toolkit.(*)..").should().beFreeOfCycles()`):** Certifica la ausencia absoluta de dependencias circulares entre los paquetes del toolkit.
+
+* **`CodingStandardsTest.java` (6 reglas de Clean Code y buenas prácticas):**
+  * **Inyección por Constructor Obligatoria (`NO_CLASSES_SHOULD_USE_FIELD_INJECTION`):** Prohíbe la inyección directa sobre campos (`@Autowired` o `@Value` en atributos privados). Impone la inyección por constructor para favorecer inmutabilidad (`final`), detectar dependencias ausentes en tiempo de compilación y permitir tests unitarios limpios sin reflection hacks.
+  * **Logging Estructurado (`NO_CLASSES_SHOULD_ACCESS_STANDARD_STREAMS`):** Proscribe el uso de `System.out`, `System.err` y `printStackTrace()`, forzando el registro mediante SLF4J / Logback.
+  * **Jerarquía de Excepciones Tipadas (`NO_CLASSES_SHOULD_THROW_GENERIC_EXCEPTIONS`):** Prohíbe lanzar `Exception` o `Throwable` genéricos desde métodos de negocio.
+  * **Estandarización de Logging (`NO_CLASSES_SHOULD_USE_JAVA_UTIL_LOGGING`):** Garantiza que no se utilice `java.util.logging` en favor de SLF4J.
+  * **Consistencia de Excepciones:** Toda clase terminada en `Exception` debe heredar de `Throwable` y residir en `toolkit.exception`.
+  * **Encapsulación de Entidades JPA:** Prohíbe campos públicos no estáticos en cualquier clase que extienda `BaseEntity`.
+
+* **`SpringConventionsTest.java` (6 reglas de convenciones Spring Boot y Custom Condition):**
+  * **Nomenclatura Homogénea:** Los controladores deben nombrarse `*Controller` o derivar de `BaseRestController`, y los servicios deben nombrarse `*Service` o derivar de `BaseService`.
+  * **Contrato Spring Data:** Toda interfaz en `toolkit.repository` debe heredar de `org.springframework.data.repository.Repository`.
+  * **Centralización de Excepciones:** Las clases anotadas con `@RestControllerAdvice` o `@ControllerAdvice` deben residir en `toolkit.exception`, y todo método `@ExceptionHandler` debe residir dentro de un manejador advice centralizado.
+  * **Condición Personalizada de ArchUnit (`ArchCondition<JavaMethod>`):** Demuestra la extensibilidad del Core API de ArchUnit implementando una condición que valida que todo método público en controladores REST devuelva un `ResponseEntity`, garantizando el encapsulado explícito de códigos de estado HTTP y cabeceras.
+
+### 6.2. Pruebas Unitarias y de Integración Backend (**101 tests** | JUnit 5, Mockito, AssertJ, Spring MockMvc)
 Ubicadas en `backend/src/test/java/toolkit/`, organizadas por módulos y utilizando fixtures dedicados (`dummy/`) para verificar las abstracciones de forma 100% desacoplada:
 * **`WebSocketSecurityTests.java` (23 tests):** Seguridad STOMP/WebSocket en tiempo real: autenticación JWT en handshake `CONNECT`, validación de destinos, control de tamaño de carga útil (máx. 64 KB), rechazo de accesos no autenticados, inyección de `SecurityContextHolder` y rate limiting estricto (60 msg/min por usuario con ventana de reseteo automático).
 * **`BaseServiceTest.java` (26 tests):** Validación exhaustiva del ciclo de vida CRUD, control de excepciones `ResourceNotFoundException`, transaccionalidad, métodos hook del patrón Template Method y la lógica atómica de `updateSome` (comprobación de paridad de tamaños, actualización campo a campo y persistencia masiva).
@@ -461,7 +489,7 @@ Ubicadas en `backend/src/test/java/toolkit/`, organizadas por módulos y utiliza
   * `ExceptionHandlerControllerTest.java` (3 tests): Mapeo unificado de excepciones a respuestas estructuradas `ErrorMessage` y códigos HTTP (`404`, `400`, `500`).
 *(Nota: Las antiguas suites de prueba `UserDetailsImplTest` y `UserDetailsServiceImplTest` fueron retiradas al desacoplar el modelo de usuario, consolidando un conjunto limpio de 101 tests genéricos e independientes del dominio).*
 
-### ⚛️ Pruebas en Frontend (**141 tests** | Jest / Vitest, React Testing Library, User Event)
+### 6.3. Pruebas en Frontend (**141 tests** | Jest / Vitest, React Testing Library, User Event)
 Ubicadas junto a cada componente en `frontend/src/components/`, cubriendo comportamiento de usuario, accesibilidad y lógica algorítmica:
 * **Generación y Manipulación de Listas (48 tests):**
   * `ListGeneratorHelper.test.tsx` (18 tests): Lógica de renderizado, selección masiva, filtrado y helpers.
@@ -537,6 +565,9 @@ A comprehensive, strongly typed full-stack ecosystem built with **Spring Boot 3 
    - [5.8. WebSocketManager (Real-Time STOMP Client)](#58-websocketmanager-1)
    - [5.9. Responsive Design & Adaptive CSS (vh, vw, rem & Media Queries)](#59-responsive-design--adaptive-css)
 6. [Automated Testing & Code Quality](#6-automated-testing--code-quality)
+   - [6.1. Architectural Testing with ArchUnit (Architecture-as-Code)](#61-architectural-testing-with-archunit-17-rules--archunit-junit-5-tng-technology-consulting)
+   - [6.2. Backend Unit and Integration Tests](#62-backend-unit-and-integration-tests-101-tests--junit-5-mockito-assertj-spring-mockmvc)
+   - [6.3. Frontend Tests](#63-frontend-tests-141-tests--jest--vitest-react-testing-library-user-event)
 7. [License, Authorship & Intellectual Property](#7-license-authorship--intellectual-property)
 
 ---
@@ -928,16 +959,41 @@ All frontend UI components are built with a **fully responsive and adaptive desi
 
 ## 6. Automated Testing & Code Quality
 
-The toolkit demonstrates an exceptional commitment to software reliability and quality, backed by a total of **242 automated tests (101 Backend + 141 Frontend)** covering each architectural layer at both the unit and integration levels:
+The toolkit demonstrates an exceptional commitment to software reliability and quality, backed by a total of **259 automated tests (118 Backend [101 functional + 17 ArchUnit architectural rules] + 141 Frontend)** covering each layer at the unit, integration, and design levels:
 
 | Layer | Files / Suites | Automated Tests | Core Technologies | Functional Coverage |
 | :--- | :---: | :---: | :--- | :--- |
-| **☕ Backend** | 11 suites (+ fixtures) | **101 tests** | JUnit 5, Mockito, AssertJ, Spring MockMvc, JPA | Full CRUD lifecycle, WebSocket/JWT security, transactions & entities |
+| **☕ Backend (Architecture)** | 3 suites | **17 rules** | ArchUnit (TNG), ASM, JUnit 5 | Architecture-as-Code, layer boundaries, cycles, constructor injection & conventions |
+| **☕ Backend (Unit & Integration)** | 11 suites (+ fixtures) | **101 tests** | JUnit 5, Mockito, AssertJ, Spring MockMvc, JPA | Full CRUD lifecycle, WebSocket/JWT security, transactions & entities |
 | **⚛️ Frontend** | 17 suites | **141 tests** | Jest / Vitest, React Testing Library, User Event | Forms, interactive tables, wizards, search, security & WebSockets |
-| **🏆 TOTAL** | **28 suites** | **242 tests** | *Unified Spring Boot + React Stack* | **Complete End-to-End Coverage** |
+| **🏆 TOTAL** | **31 suites** | **259 tests** | *Unified Spring Boot + React Stack* | **Complete End-to-End & Architectural Quality** |
 
 
-### ☕ Backend Tests (**101 tests** | JUnit 5, Mockito, AssertJ, Spring MockMvc)
+### 6.1. Architectural Testing with ArchUnit (**17 rules** | ArchUnit JUnit 5, TNG Technology Consulting)
+Located in `backend/src/test/java/toolkit/architecture/`. ArchUnit (an open-source framework initiated and maintained by **TNG Technology Consulting**) implements **Architecture-as-Code** through **Architectural Fitness Functions**. By analyzing compiled `.class` bytecode directly via **ASM** without spinning up a heavy Spring context, ArchUnit evaluates complex architectural invariants in milliseconds to permanently prevent architectural degradation or erosion:
+
+* **`LayerArchitectureTest.java` (5 layer boundary & dependency rules):**
+  * **Strict Layering (`layeredArchitecture()`):** Defines rigid boundaries across `Controllers` (`..controller..`), `Services` (`..service..`), `Repositories` (`..repository..`), `Models` (`..model..`), and `Security` (`..security..`, `..configuration..`).
+  * **No Direct Persistence Bypassing:** REST controllers are explicitly forbidden from accessing repositories directly (`noClasses().that().resideInAPackage("..controller..").should().dependOnClassesThat().resideInAPackage("..repository..")`), ensuring all data access flows through transactional service layers (`@Transactional`).
+  * **Web Layer Decoupling:** Business services cannot reference HTTP presentation controllers or web artifacts.
+  * **Persistence Independence:** Data repositories cannot depend on higher-level service abstractions.
+  * **Acyclic Package Graphs (`slices().matching("toolkit.(*)..").should().beFreeOfCycles()`):** Guarantees that packages remain strictly free of circular dependencies.
+
+* **`CodingStandardsTest.java` (6 clean code & quality rules):**
+  * **Constructor Injection Enforcement (`NO_CLASSES_SHOULD_USE_FIELD_INJECTION`):** Forbids field injection (`@Autowired` or `@Value` on private attributes). Mandates constructor injection to guarantee field immutability (`final`), fail-fast instantiation, and reflection-free unit testing.
+  * **Structured Logging Standards (`NO_CLASSES_SHOULD_ACCESS_STANDARD_STREAMS`):** Eliminates `System.out`, `System.err`, and `e.printStackTrace()` in favor of SLF4J / Logback.
+  * **Typed Exception Hierarchy (`NO_CLASSES_SHOULD_THROW_GENERIC_EXCEPTIONS`):** Forbids methods from throwing unhandled generic `Exception` or `Throwable`.
+  * **Logging Framework Standardization (`NO_CLASSES_SHOULD_USE_JAVA_UTIL_LOGGING`):** Enforces SLF4J across the toolkit.
+  * **Domain Exception Integrity:** Classes named `*Exception` must inherit from `Throwable` and reside within `toolkit.exception`.
+  * **JPA Entity Encapsulation:** Prohibits non-static public fields across all entities inheriting from `BaseEntity`.
+
+* **`SpringConventionsTest.java` (6 Spring Boot conventions & Custom ArchCondition):**
+  * **Consistent Component Naming:** Controllers must be named `*Controller` or extend `BaseRestController`; services must be named `*Service` or extend `BaseService`.
+  * **Spring Data Repository Abstraction:** Interfaces in `toolkit.repository` must extend Spring Data's `Repository`.
+  * **Centralized Advice:** `@RestControllerAdvice` and `@ControllerAdvice` beans must reside in `toolkit.exception`, and all `@ExceptionHandler` methods must be declared within these advice handlers.
+  * **Custom ArchCondition (`ArchCondition<JavaMethod>`):** Illustrates ArchUnit's deep extensibility by creating a custom condition verifying that public REST controller endpoints return `ResponseEntity` wrappers rather than bare domain entities, guaranteeing explicit HTTP status codes and headers.
+
+### 6.2. Backend Unit and Integration Tests (**101 tests** | JUnit 5, Mockito, AssertJ, Spring MockMvc)
 Located in `backend/src/test/java/toolkit/`, structured by module and using dedicated test fixtures (`dummy/`) to verify generic base abstractions in complete isolation:
 * **`WebSocketSecurityTests.java` (23 tests):** Real-time STOMP/WebSocket security: JWT authentication on handshake `CONNECT`, destination validation, payload size constraints (max 64 KB), unauthenticated request rejection, `SecurityContextHolder` population, and strict per-user rate limiting (60 msg/min with automatic sliding window reset).
 * **`BaseServiceTest.java` (26 tests):** Comprehensive verification of the CRUD lifecycle, `ResourceNotFoundException` handling, transactionality, Template Method hook execution, and atomic batch updates via `updateSome` (size mismatch validation, field-by-field updates, and batch persistence).
@@ -954,7 +1010,7 @@ Located in `backend/src/test/java/toolkit/`, structured by module and using dedi
   * `ExceptionHandlerControllerTest.java` (3 tests): Global REST exception resolution to standardized `ErrorMessage` responses and HTTP status codes (`404`, `400`, `500`).
 *(Note: Former test suites `UserDetailsImplTest` and `UserDetailsServiceImplTest` were removed alongside the decoupled user model, yielding a lean, 100% generic test suite of 101 domain-agnostic tests).*
 
-### ⚛️ Frontend Tests (**141 tests** | Jest / Vitest, React Testing Library, User Event)
+### 6.3. Frontend Tests (**141 tests** | Jest / Vitest, React Testing Library, User Event)
 Colocated with components in `frontend/src/components/`, validating user behavior, accessibility, and algorithmic correctness:
 * **List Generation & Table Interactions (48 tests):**
   * `ListGeneratorHelper.test.tsx` (18 tests): Core rendering logic, bulk selection helpers, and data transformations.
