@@ -1,0 +1,92 @@
+@startuml
+autonumber
+skinparam shadowing false
+skinparam sequence {
+    ArrowColor #2C3E50
+    LifeLineBorderColor #2C3E50
+    ParticipantBorderColor #2C3E50
+    ParticipantBackgroundColor #ECF0F1
+}
+
+title Client-Side Lifecycle and Subscription Management (WebSocketManager)
+
+actor "React Component" as View
+participant "WebSocketManager" as Manager
+participant "buildSocketUrl()" as UrlResolver
+participant "Client (@stomp/stompjs)" as StompClient
+participant "Transport (WS / SockJS)" as Transport
+participant "STOMP Server" as Server
+
+== 1. Instantiation and Subscription Pre-registration ==
+
+View -> Manager: new WebSocketManager(jwt, { useSockJS, events })
+activate Manager
+
+View -> Manager: addSubscription("resource/123", handlerCallback)
+Manager -> Manager: subscriptions.push({ topic: "resource/123", handler })
+note right Manager
+  Subscriptions are queued in memory
+  before opening the network connection.
+end note
+
+== 2. Connection Negotiation and Establishment ==
+
+View -> Manager: initConnection()
+opt activated === true
+    Manager --> View: Early return (Already connected)
+end
+
+Manager -> UrlResolver: buildSocketUrl()
+activate UrlResolver
+UrlResolver --> Manager: socketUrl
+deactivate UrlResolver
+note right of UrlResolver
+  Algorithmic resolution of host, port, and protocol.
+  See activity diagram:
+  "16_Flow_WebSocketManager_Connection_Management"
+end note
+
+Manager -> StompClient: new Client({ connectHeaders: { Authorization: "Bearer <jwt>" } })
+activate StompClient
+
+Manager -> StompClient: client.activate()
+Manager -> Manager: activated = true
+
+StompClient -> Transport: Initiate socket (SockJS or native WebSocket)
+activate Transport
+Transport -> Server: HTTP Handshake / Upgrade to WebSocket
+Server --> Transport: 101 Switching Protocols
+
+StompClient -> Server: STOMP Frame: CONNECT (Authorization: Bearer <jwt>)
+Server --> StompClient: STOMP Frame: CONNECTED
+deactivate Transport
+
+== 3. Automatic Resubscription (resubscribeAll) and Event Dispatch ==
+
+StompClient -> Manager: onConnect()
+Manager -> Manager: resubscribeAll()
+
+loop For each subscription in subscriptions[]
+    Manager -> StompClient: subscribe("/topic/" + sub.topic, callback)
+    StompClient -> Server: STOMP Frame: SUBSCRIBE /topic/resource/123
+end
+
+Manager -> View: events.onConnect?.()
+
+... Real-Time Communication ...
+
+Server -> StompClient: STOMP Frame: MESSAGE (body: JSON)
+StompClient -> Manager: Invokes registered callback
+Manager -> Manager: JSON.parse(message.body)
+Manager -> View: handlerCallback(parsedData)
+
+== 4. Teardown and Disconnection ==
+
+View -> Manager: deactivate()
+Manager -> StompClient: client.deactivate()
+deactivate StompClient
+Manager -> Manager: activated = false
+Manager -> Manager: subscriptions = []
+deactivate Manager
+
+@enduml

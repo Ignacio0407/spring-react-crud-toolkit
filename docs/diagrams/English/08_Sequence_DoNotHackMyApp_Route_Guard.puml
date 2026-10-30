@@ -1,0 +1,64 @@
+@startuml
+autonumber
+skinparam shadowing false
+skinparam sequence {
+    ArrowColor #2C3E50
+    LifeLineBorderColor #2C3E50
+    ParticipantBorderColor #2C3E50
+    ParticipantBackgroundColor #ECF0F1
+}
+
+title Client-Side Security Guard and Access Control (DoNotHackMyApp)
+
+actor "User" as User
+participant "Protected Component\n(ListGenerator / EditFormGenerator)" as ProtectedView
+participant "navigateToUnauthorized\n(DoNotHackMyAppHelper)" as GuardHelper
+participant "useNavigate\n(React Router)" as Router
+participant "DoNotHackMyApp\n(Access Denied View)" as SecurityShield
+
+== 1. Pre-Render Interception ==
+
+User -> ProtectedView: Attempts to render view (with props: actualUser, requiredAuth)
+activate ProtectedView
+
+ProtectedView -> GuardHelper: navigateToUnauthorized(checkAuth, actualUser, requiredAuth, navigate)
+activate GuardHelper
+
+== 2. Authorization Policy Evaluation ==
+
+GuardHelper -> GuardHelper: Evaluate authorization policies
+note right of GuardHelper
+  Permission evaluation hierarchy:
+  custom function, explicit bypass, or
+  standard verification (ADMIN bypass / exact role).
+  See activity diagram:
+  "18_Flow_DoNotHackMyApp_Authorization_Verification"
+end note
+
+== 3. Access Resolution ==
+
+alt Access Denied (userHasAuth === false)
+    GuardHelper -> Router: navigate("/do-not-hack-my-app")
+    activate Router
+    Router -> SecurityShield: Renders lock screen
+    activate SecurityShield
+    SecurityShield --> User: Displays "Unauthorized Access" notice
+    deactivate SecurityShield
+    deactivate Router
+
+    GuardHelper --> ProtectedView: Aborts rendering (return null)
+    deactivate GuardHelper
+    note right ProtectedView
+      Aborts component rendering lifecycle
+      when authorization criteria are not met.
+    end note
+else Access Granted (userHasAuth === true)
+    GuardHelper --> ProtectedView: Continues normal execution
+    deactivate GuardHelper
+
+    ProtectedView --> User: Renders protected table or form
+end
+
+deactivate ProtectedView
+
+@enduml

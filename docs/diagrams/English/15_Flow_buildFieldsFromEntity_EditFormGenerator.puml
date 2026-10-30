@@ -1,0 +1,63 @@
+@startuml
+skinparam shadowing false
+skinparam conditionStyle inside
+skinparam defaultTextAlignment center
+
+title Flowchart of Schema Inference: buildFieldsFromEntity (EditFormGenerator.tsx)
+
+start
+
+:Receive entity: object | null,\nselectOptions: Record<string, string[]>,\nfieldConfig: Record<string, Partial<FieldDef>>;
+
+if (entity === null?) then (yes)
+    :Return empty array: [];
+    stop
+endif
+
+:Extract object keys:\nkeys = Object.keys(entity);
+:Filter primary key:\nfilteredKeys = keys.filter(k => k !== 'id');
+
+:Initialize fields array:\nfields = [];
+
+while (For each 'key' in filteredKeys) is (next)
+    :value = entity[key];
+
+    partition "Type Inference Decision Tree" {
+        if (selectOptions[key] is defined?) then (yes)
+            :type = 'select';\nvalues = selectOptions[key];
+        elseif (typeof value === 'number'?) then (yes)
+            :type = 'number';
+        elseif (typeof value === 'boolean'?) then (yes)
+            :type = 'checkbox';
+        elseif (value instanceof Date?) then (yes)
+            :type = 'date';
+        elseif (Array.isArray(value)?) then (yes)
+            :type = 'select';\nvalues = value;
+        elseif (key.toLowerCase().includes('password')?) then (yes)
+            :type = 'password';
+        elseif (key.toLowerCase().includes('email')?) then (yes)
+            :type = 'email';
+        else (default)
+            :type = 'text';
+        endif
+    }
+
+    partition "FieldDef Descriptor Construction" {
+        :Generate human-readable label:\ntag = key.charAt(0).toUpperCase() + key.slice(1);
+        
+        if (type === 'checkbox'?) then (yes)
+            :defaultValue = String(value);
+        else (no)
+            :defaultValue = String(value ?? '');
+        endif
+
+        :Build FieldDef object:\nfield = {\n  tag,\n  name: key,\n  type,\n  defaultValue,\n  values,\n  ...fieldConfig[key]\n};
+        
+        :fields.push(field);
+    }
+endwhile (end keys)
+
+:Return fields: FieldDef[];
+stop
+
+@enduml

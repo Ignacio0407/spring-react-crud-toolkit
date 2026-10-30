@@ -1,0 +1,99 @@
+@startuml
+skinparam shadowing false
+skinparam conditionStyle inside
+skinparam defaultTextAlignment center
+
+title Flowchart of Version History and Undo/Redo (MassEditWizard.tsx)
+
+start
+
+:Receive items: readonly T[], massEditUri: string;
+
+partition "Version History Initialization" {
+    :Initialize reactive history:\neditHistory = items.map(item => ({\n  original: structuredClone(item),\n  versions: [],\n  activeVersion: -1\n}));
+    :activeIndex = 0\nshowReview = false;
+}
+
+while (Wizard open and user interacts) is (user event)
+    :current = editHistory[activeIndex];
+    
+    partition "Active Entity Resolution" {
+        if (current.activeVersion >= 0?) then (yes [Previous version])
+            :currentEntity = current.versions[current.activeVersion];
+        else (no [No changes])
+            :currentEntity = current.original;
+        endif
+    }
+
+    if (Action triggered by user?) then (Modify: applyUpdate)
+        partition "applyUpdate(updatedEntity)" {
+            if (hasChanges(currentEntity, updatedEntity)?) then (yes [Differences exist])
+                :Truncate future versions after possible Undo:\nv = versions.slice(0, activeVersion + 1);
+                :Append new cloned version:\nv.push(structuredClone(updatedEntity));
+                :Update active version pointer:\nactiveVersion = v.length - 1;
+                :Store updated tuple in editHistory[activeIndex];
+            else (no [No real changes])
+                :Keep history intact;
+            endif
+
+            :Advance index if not last:\nactiveIndex = Math.min(activeIndex + 1, items.length - 1);
+
+            if (activeIndex === items.length - 1?) then (yes [Last item])
+                :showReview = true\n[Enables Review button];
+            endif
+        }
+
+    elseif (Action triggered by user?) then (Undo: undo)
+        partition "Undo Operation" {
+            if (current.activeVersion >= 0?) then (yes)
+                :Decrement pointer:\ncurrent.activeVersion--;
+                note right
+                  If activeVersion reaches -1,
+                  currentEntity reverts
+                  to current.original.
+                end note
+            else (no [Already in original state])
+                :Operation disabled;
+            endif
+        }
+
+    elseif (Action triggered by user?) then (Redo: redo)
+        partition "Redo Operation" {
+            if (current.activeVersion < current.versions.length - 1?) then (yes)
+                :Increment pointer:\ncurrent.activeVersion++;
+                note right
+                  Advances to next
+                  previously recorded version
+                  without network requests.
+                end note
+            else (no [Already on latest version])
+                :Operation disabled;
+            endif
+        }
+
+    elseif (Action triggered by user?) then (Confirm: confirmAll)
+        partition "confirmAll(): Filtering and Atomic Persistence" {
+            :Filter items with valid edits:\nchanged = editHistory.filter(t => t.activeVersion >= 0 && t.versions.length > 0);
+
+            if (changed.length === 0?) then (yes [No modifications])
+                :onClose(null)\n[Close wizard without requests];
+                stop
+            else (no [Pending changes exist])
+                :Construct UpdateSomeDTO payload:\nids = changed.map(c => c.id)\nentities = changed.map(c => c.versions[c.activeVersion]);
+                :put(massEditUri, jwt, { ids, entities });
+                note right
+                  HTTP PUT /some request sent to backend.
+                  Transactional atomic persistence (@Transactional).
+                  See activity diagram:\n  "17_Flow_BaseService_updateSome_Transactional"
+                end note
+                :onClose(updatedEntities);
+                stop
+            endif
+        }
+    endif
+endwhile (user closes or cancels)
+
+:onClose(null);
+stop
+
+@enduml

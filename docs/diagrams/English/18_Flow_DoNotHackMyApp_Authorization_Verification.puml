@@ -1,0 +1,43 @@
+@startuml
+skinparam shadowing false
+skinparam conditionStyle inside
+skinparam defaultTextAlignment center
+
+title Flowchart of Permission Evaluation: navigateToUnauthorized (DoNotHackMyAppHelper.ts)
+
+start
+
+:Invocation of navigateToUnauthorized\n(checkAuth, actualUser, requiredAuth, navigate, onUnauthorizedRedirect);
+
+:userHasAuth = null;
+
+partition "Authorization Evaluation Tree" {
+    if (typeof checkAuth === "function" && requiredAuth?) then (yes [checkAuth function])
+        :userHasAuth = checkAuth(requiredAuth);
+    elseif (requiredAuth && checkAuth === true?) then (yes [Allowed])
+        :userHasAuth = true;
+    elseif (requiredAuth && actualUser && checkAuth === undefined?) then (yes [Default])
+        partition "checkAuthDefault(required, actualUser)" {
+            if (actualUser.roles && actualUser.roles[0] !== Authority.ADMIN?) then (yes [Standard User])
+                :userHasAuth = (requiredAuth === actualUser.roles[0]);
+            else (no [ADMIN Role])
+                :userHasAuth = true;
+            endif
+        }
+    else (not required or no user)
+        :userHasAuth = null;
+    endif
+}
+
+partition "Access Resolution and Redirection" {
+    if (!userHasAuth?) then (yes [Access Denied])
+        :navigate(onUnauthorizedRedirect || "/do-not-hack-my-app");
+        :Return null\n[Aborts rendering];
+        stop
+    else (no [Access Granted])
+        :Allow rendering to continue;
+        stop
+    endif
+}
+
+@enduml

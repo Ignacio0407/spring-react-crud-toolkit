@@ -1,0 +1,93 @@
+@startuml
+autonumber
+skinparam shadowing false
+skinparam sequence {
+    ArrowColor #2C3E50
+    LifeLineBorderColor #2C3E50
+    ParticipantBorderColor #2C3E50
+    ParticipantBackgroundColor #ECF0F1
+}
+
+title Mass Edit Cycle (MassEditWizard): Differential Review and Atomic Persistence
+
+actor "Administrator" as Admin
+participant "MassEditWizard" as Wizard
+participant "EditFormGenerator" as Form
+participant "ReviewModal" as Review
+participant "BaseRestController" as Controller
+participant "BaseService" as Service
+participant "BaseRepository" as Repo
+
+== 1. Version History Initialization ==
+
+Wizard -> Wizard: Initializes edit history (original, versions, activeVersion)
+activate Wizard
+
+== 2. Sequential Editing with Version History (Undo / Redo) ==
+
+loop For each selected item (activeIndex = 0 .. N-1)
+    Wizard -> Form: Render form with active entity
+    Admin -> Form: Modifies fields and clicks "Update & Next"
+    Form -> Wizard: applyUpdate(updatedEntity)
+
+    Wizard -> Wizard: Records changes in history
+    note right of Wizard
+        Manages versions and the
+        active version in memory.
+        See activity diagram:
+        "19_Flow_MassEditWizard_UndoRedo_History"
+    end note
+end
+
+== 3. Differential Change Review (ReviewModal) ==
+
+Admin -> Wizard: Clicks "Review" button
+Wizard -> Review: Opens comparative modal passing originals[] and updated[]
+activate Review
+
+Review -> Admin: Displays field-by-field differential comparison
+Admin -> Review: Reviews diffs and clicks "Confirm Changes"
+
+Review -> Wizard: onConfirm()
+deactivate Review
+
+== 4. Batch Submission and Atomic Backend Persistence ==
+
+Wizard -> Wizard: Retrieves confirmed edits (activeVersion >= 0)
+
+Wizard -> Controller: PUT /api/v1/resource/some\n[Payload: UpdateSomeDTO { ids: [...], entities: [...] }]
+activate Controller
+
+Controller -> Service: updateSome(request.getIds(), request.getEntities())
+activate Service
+
+Service -> Service: Validates size parity: ids.size() == updatedEntities.size()
+note right of Service
+  Atomic transactional execution (@Transactional).
+  Checks existence, invokes hook updateEntityFields
+  and triggers rollback if any item fails.
+  See activity diagram:
+  "17_Flow_BaseService_updateSome_Transactional"
+end note
+
+loop For each id and entity in batch
+    Service -> Repo: findById(id)
+    Service -> Service: updateEntityFields(existing, updated)
+    Service -> Service: toSave.add(existing)
+end
+
+Service -> Repo: saveAll(toSave)
+activate Repo
+Repo --> Service: savedEntities: List<T>
+deactivate Repo
+
+Service --> Controller: savedEntities
+deactivate Service
+
+Controller --> Wizard: 200 OK [JSON with persisted entities]
+deactivate Controller
+
+Wizard --> Admin: Closes modal and refreshes ListGenerator table with consolidated data
+deactivate Wizard
+
+@enduml

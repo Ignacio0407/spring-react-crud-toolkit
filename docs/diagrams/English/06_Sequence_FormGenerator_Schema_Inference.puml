@@ -1,0 +1,84 @@
+@startuml
+autonumber
+skinparam shadowing false
+skinparam sequence {
+    ArrowColor #2C3E50
+    LifeLineBorderColor #2C3E50
+    ParticipantBorderColor #2C3E50
+    ParticipantBackgroundColor #ECF0F1
+}
+
+title Dynamic Schema Inference and Form Lifecycle (FormGenerator & EditFormGenerator)
+
+actor "User" as User
+participant "EditFormGenerator" as FormView
+participant "buildFieldsFromEntity" as SchemaInfer
+participant "useForm (React Hook Form)" as HookForm
+participant "FormInput" as AtomicInput
+participant "Backend REST API" as Backend
+
+== 1. Entity Loading and Schema Inference ==
+
+User -> FormView: Opens edit form with entityToEdit (or via URL route)
+activate FormView
+
+opt entityToEdit is null (Deferred load via URL)
+    FormView -> Backend: GET /api/v1/resource/{id}
+    Backend --> FormView: 200 OK [JSON with entity attributes]
+end
+
+FormView -> SchemaInfer: buildFieldsFromEntity(entity, selectOptions, fieldConfig)
+activate SchemaInfer
+SchemaInfer --> FormView: fields: FieldDef[]
+deactivate SchemaInfer
+note right of SchemaInfer
+  Dynamic schema inference from in-memory object.
+  Filters primary key and deduces input types (select, text, number, etc.).
+  See activity diagram:
+  "15_Flow_buildFieldsFromEntity_EditFormGenerator"
+end note
+
+== 2. Uncontrolled State Initialization ==
+
+FormView -> HookForm: useForm<T>({ defaultValues: entity })
+activate HookForm
+HookForm --> FormView: { register, handleSubmit, formState: { errors, isSubmitting } }
+deactivate HookForm
+
+loop For each field in fields: FieldDef[]
+    FormView -> AtomicInput: Render FormInput(field, register, errors)
+    AtomicInput -> AtomicInput: Binds uncontrolled ref via register(name)
+end
+
+== 3. Client-Side Data Editing ==
+
+User -> AtomicInput: Inputs text and modifies controls
+note right AtomicInput
+  React Hook Form manages inputs via uncontrolled references,
+  optimizing form re-renders.
+end note
+
+== 4. Submission, Validation, and Persistence ==
+
+User -> FormView: Clicks "Save" / Submit button
+FormView -> HookForm: handleSubmit(onSubmit)(event)
+activate HookForm
+
+alt Form contains validation errors
+    HookForm -> FormView: Updates formState.errors
+    FormView -> AtomicInput: Displays error messages in red under affected fields
+else Form is valid
+    HookForm -> FormView: Invokes callback onSubmit(formData)
+    deactivate HookForm
+    
+    FormView -> Backend: PUT /api/v1/resource/{id} [Payload: serialized JSON]
+    activate Backend
+    Backend --> FormView: 200 OK [Updated entity]
+    deactivate Backend
+    
+    FormView -> User: Displays confirmation or redirects to table
+end
+
+deactivate FormView
+
+@enduml

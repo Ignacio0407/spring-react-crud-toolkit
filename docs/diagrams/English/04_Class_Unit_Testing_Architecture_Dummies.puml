@@ -1,0 +1,105 @@
+@startuml
+skinparam shadowing false
+skinparam packageStyle rectangle
+
+title Unit Testing Architecture with Test Doubles (Dummies & Mocks)
+
+package "Production Base Components (toolkit.*)" #F5F5F5 {
+    abstract class BaseEntity
+    abstract class BaseService<T, I>
+    abstract class BaseServiceWithDTO<T extends BaseEntity, D, I>
+    abstract class BaseRestController<T, I>
+    abstract class BaseRestControllerWithDTO<T extends BaseEntity, D, I>
+    interface BaseRepository<T, D, I>
+    interface EntityMapper<T, D>
+}
+
+package "Self-Contained Test Doubles (toolkit.model.dummy)" #FFF9C4 {
+    class TestEntity extends BaseEntity {
+        - String name
+        + String getName()
+        + void setName(String name)
+    }
+
+    class TestDTO {
+        - Integer id
+        - String name
+    }
+
+    interface TestRepository extends BaseRepository
+
+    class TestService extends BaseService {
+        + TestService(TestRepository repo)
+        # TestEntity updateEntityFields(TestEntity existing, TestEntity updated)
+    }
+
+    class TestServiceWithDTO extends BaseServiceWithDTO {
+        + TestServiceWithDTO(TestRepository repo, EntityMapper mapper)
+    }
+
+    class TestController extends BaseRestController {
+        + TestController(TestService service)
+    }
+
+    class TestControllerWithDTO extends BaseRestControllerWithDTO {
+        + TestControllerWithDTO(TestServiceWithDTO service)
+    }
+}
+
+package "Isolated Unit Test Suites (src/test/java/toolkit)" #E1F5FE {
+    class BaseServiceTest {
+        - TestRepository repository
+        - TestService service
+        + void testFindAll()
+        + void testFindById_Success()
+        + void testFindById_NotFound()
+        + void testSave()
+        + void testDeleteById()
+        + void testUpdateSome_Success()
+        + void testUpdateSome_SizeMismatch()
+    }
+
+    class BaseRestControllerTest {
+        - MockMvc mockMvc
+        - TestService service
+        + void testFindAll_Returns200()
+        + void testFindById_Returns200()
+        + void testSave_Returns201()
+        + void testDelete_Returns204()
+        + void testUpdateSome_Returns200()
+    }
+
+    class BaseServiceWithDTOTest {
+        - TestRepository repository
+        - EntityMapper mapper
+        - TestServiceWithDTO service
+        + void testFindAllAsDTO()
+        + void testFindByIdAsDTO_Success()
+        + void testSaveAsDTO()
+    }
+
+    class BaseRestControllerWithDTOTest {
+        - MockMvc mockMvc
+        - TestServiceWithDTO service
+        + void testFindAllAsDTO_Returns200()
+        + void testFindByIdAsDTO_Returns200()
+    }
+}
+
+' Testing and mocking relationships
+BaseServiceTest ..> TestService : exercises CRUD methods
+BaseServiceTest ..> TestRepository : mock with Mockito
+BaseRestControllerTest ..> TestController : executes via MockMvc
+BaseRestControllerTest ..> TestService : mock with Mockito
+BaseServiceWithDTOTest ..> TestServiceWithDTO : exercises DTO methods
+BaseServiceWithDTOTest ..> TestRepository : mock with Mockito
+BaseServiceWithDTOTest ..> EntityMapper : mock with Mockito
+BaseRestControllerWithDTOTest ..> TestControllerWithDTO : executes via MockMvc
+BaseRestControllerWithDTOTest ..> TestServiceWithDTO : mock with Mockito
+
+note bottom of BaseServiceTest
+  Validates transversal CRUD logic, Template Method hooks
+  and size parity in updateSome without requiring an active database.
+end note
+
+@enduml

@@ -1,0 +1,87 @@
+@startuml
+skinparam shadowing false
+skinparam packageStyle rectangle
+
+title Framework Global Full-Stack Architecture (Spring-React CRUD Toolkit)
+
+package "Frontend (React 18 + TypeScript)" #E3F2FD {
+    package "Declarative Forms Module" #BBDEFB {
+        component "FormGenerator / EditFormGenerator\n(React Hook Form + Schema Inference)" as Forms
+    }
+
+    package "Tables & Mass Edit Wizard Module" #BBDEFB {
+        component "ListGenerator\n(Table Orchestrator)" as ListGen
+        component "MassEditWizard\n(Undo/Redo History & Diff)" as MassEdit
+    }
+
+    package "Client-Side Search Engine" #BBDEFB {
+        component "SearchBar & useSearchEngine\n(Debounce + In-Memory LRU Cache)" as Search
+    }
+
+    package "Security & Navigation" #BBDEFB {
+        component "DoNotHackMyApp\n(Authorization Guard)" as Guard
+        component "ButtonLink\n(SPA Routing)" as ButtonLink
+    }
+
+    package "Real-Time Client" #BBDEFB {
+        component "WebSocketManager\n(STOMP / SockJS Client + JWT)" as WSManager
+    }
+}
+
+package "Network Perimeter & Transport" #ECEFF1 {
+    interface "REST HTTP Requests\n(JSON / Bearer JWT)" as RestProtocol
+    interface "STOMP Messaging over WebSockets\n(Event-Driven Push)" as WsProtocol
+}
+
+package "Backend (Spring Boot 3 + Java 21 - toolkit.*)" #F1F8E9 {
+    package "Filters & Interceptors Layer" #FFF9C4 {
+        component "AuthTokenFilter\n(REST JWT Validation)" as JWTFilter
+        component "WebSocketSecurityInterceptor\n(Rate Limiting & Payload Defense)" as WSInterceptor
+    }
+
+    package "Controllers Layer (REST API)" #C8E6C9 {
+        component "BaseRestController / WithDTO\n(CRUD Contracts & /some)" as Controllers
+        component "ExceptionHandlerController\n(Centralized @RestControllerAdvice)" as Advice
+    }
+
+    package "Business & Mapping Layer" #A5D6A7 {
+        component "BaseService / WithDTO\n(Template Method & Transactionality)" as Services
+        component "EntityMapper & UpdateSomeDTO\n(DTO - Entity Isolation)" as Mappers
+    }
+
+    package "Data Access Layer (Spring Data JPA)" #DCEDC8 {
+        component "BaseRepository\n(DTO Projections & Native CRUD)" as Repositories
+    }
+
+    queue "STOMP Message Broker\n(SimpleBroker)" as STOMPBroker
+}
+
+database "Persistent Storage" #ECEFF1 {
+    storage "Relational Database (JPA)" as DB
+}
+
+' Communication relationships Frontend -> Transport
+Forms --> RestProtocol : POST / PUT
+ListGen --> RestProtocol : GET / DELETE
+MassEdit --> RestProtocol : PUT /some (UpdateSomeDTO)
+WSManager --> WsProtocol : CONNECT & SUBSCRIBE
+
+' Internal UI dependencies
+ListGen --> Search : Integrates reactive search bar
+Guard ..> Forms : Render protection
+Guard ..> ListGen : Render protection
+
+' Transport -> Backend
+RestProtocol --> JWTFilter : Bearer interception
+JWTFilter --> Controllers : Authenticated delegation
+WsProtocol --> WSInterceptor : STOMP frame interception
+WSInterceptor --> STOMPBroker : Validated and authorized messages
+
+' Internal Backend flow
+Controllers --> Services : Invocation of business operations
+Controllers ..> Advice : Centralized exception handling
+Services --> Mappers : Bidirectional transformation DTO <-> Entity
+Services --> Repositories : CRUD operations and batch persistence
+Repositories --> DB : JPQL queries / Native projections
+
+@enduml

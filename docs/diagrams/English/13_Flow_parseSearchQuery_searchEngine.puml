@@ -1,0 +1,69 @@
+@startuml
+skinparam shadowing false
+skinparam conditionStyle inside
+skinparam defaultTextAlignment center
+
+title Flowchart of the parseSearchQuery Algorithm (searchEngine.ts - O(n) Single-Pass)
+
+start
+
+:Receive query string: query: string;
+:Initialize empty dictionary:\nfilters = {};
+
+if (query.trim() is empty?) then (yes)
+    :Return empty filters;
+    stop
+else (no)
+    :Initialize cursor index:\ni = 0;
+endif
+
+while (i < query.length?) is (yes)
+    if (isKeyChar(query[i])?) then (no)
+        :Advance cursor by one character:\ni = i + 1;
+    else (yes)
+        partition "parseEntry(query, i, filters)" {
+            :Advance to end of key:\nkeyEnd = advanceWhile(query, i, isKeyChar);
+            :Skip whitespace:\ncolon = skipWs(query, keyEnd);
+            
+            if (query[colon] === ":") then (no)
+                :Advance cursor directly to keyEnd\n(i = keyEnd);
+            else (yes)
+                :Skip whitespace after colon:\nvalueStart = skipWs(query, colon + 1);
+                
+                if (query[valueStart] === '"') then (yes [Quoted Value])
+                    :Find closing quote:\nk = query.indexOf('"', valueStart + 1);
+                    if (k !== -1?) then (yes)
+                        :raw = query.slice(valueStart + 1, k)\nvalueEnd = k + 1;
+                    else (no [Unclosed Quote])
+                        :parsed = null;
+                    endif
+                else (no [Simple Value])
+                    :Advance to next whitespace:\nk = advanceWhile(query, valueStart, !isWs);
+                    if (k > valueStart?) then (yes)
+                        :raw = query.slice(valueStart, k)\nvalueEnd = k;
+                    else (no)
+                        :parsed = null;
+                    endif
+                endif
+                
+                if (parsed !== null?) then (yes)
+                    partition "addFilter(filters, attr, raw)" {
+                        :Extract key:\nattr = query.slice(i, keyEnd).trim();
+                        :Split values by comma:\nvalues = raw.split(",").map(trim).filter(Boolean);
+                        if (values.length > 0?) then (yes)
+                            :Register filter:\nfilters[attr] = values;
+                        endif
+                    }
+                    :Advance cursor to end of value:\ni = parsed.valueEnd;
+                else (no)
+                    :Value parse failure:\ni = keyEnd;
+                endif
+            endif
+        }
+    endif
+endwhile (no)
+
+:Return filters with all extracted criteria;
+stop
+
+@enduml

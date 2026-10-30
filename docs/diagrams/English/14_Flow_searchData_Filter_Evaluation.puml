@@ -1,0 +1,95 @@
+@startuml
+skinparam shadowing false
+skinparam conditionStyle inside
+skinparam defaultTextAlignment center
+
+title Flowchart of the Search Pipeline and LRU Cache (useSearchEngine & searchData)
+
+start
+
+:Receive dataset: T[], query: string, options: SearchOptions;
+
+partition "React Hook Orchestration (useSearchEngine.ts)" {
+    if (query.trim() is empty?) then (yes)
+        :Return original unprocessed dataset;
+        stop
+    endif
+
+    :Generate unique query cache key:\ncacheKey = JSON.stringify({ q: query.trim(), o: options });
+
+    if (cache.has(cacheKey)?) then (yes [Cache Hit])
+        :Move key to end (Most Recently Used);\nReturn cached results;
+        stop
+    else (no [Cache Miss])
+        :Continue to execute searchData(dataset, query, options);
+    endif
+}
+
+partition "Filtering Criteria Evaluation (searchData in searchEngine.ts)" {
+    :parseSearchQuery(query) -> filters;
+    note right
+      Manual O(n) single-pass tokenizer.
+      See activity diagram:
+      "13_Flow_parseSearchQuery_searchEngine"
+    end note
+
+    :entries = Object.entries(filters);
+
+    if (entries.length === 0?) then (yes [No valid filters])
+        :Return original dataset;
+        stop
+    endif
+
+    :Initialize results array:\nfilteredResults = [];
+
+    while (For each item 'item' in dataset) is (next)
+        partition "Criteria Evaluation (matchesAttr)" {
+            :boolean itemMatches = (operator === "AND");
+
+            while (For each [attr, values] in entries) is (next)
+                :Resolve attribute path:\npath = attributeMap[attr] || attr;
+                :Extract nested value:\nraw = getNestedValue(item, path);
+                :Convert to string:\nstr = toComparableRaw(raw);
+                
+                if (options.caseSensitive?) then (yes)
+                    :haystack = str;
+                else (no)
+                    :haystack = normalizeLoose(str)\n[normalization without diacritics or symbols];
+                endif
+
+                :Evaluate match with values:\nmatchedValue = values.some(v => compare(haystack, prepare(v), mode));
+                
+                note right
+                  compare evaluates according to matchMode:
+                  - "exact": haystack === needle
+                  - "contains": haystack.includes(needle)
+                  - "startsWith": haystack.startsWith(needle)
+                end note
+
+                if (operator === "AND" && !matchedValue) then (fail AND)
+                    :itemMatches = false;
+                    break
+                elseif (operator === "OR" && matchedValue) then (success OR)
+                    :itemMatches = true;
+                    break
+                endif
+            endwhile (end attributes)
+
+            if (itemMatches?) then (yes)
+                :filteredResults.push(item);
+            endif
+        }
+    endwhile (end dataset)
+}
+
+partition "LRU Cache Update (useSearchEngine.ts)" {
+    if (cache.size >= cache.capacity?) then (yes [Capacity reached])
+        :Evict least recently used entry (oldest key);
+    endif
+    :cache.set(cacheKey, filteredResults);
+}
+
+:Return filteredResults;
+stop
+
+@enduml

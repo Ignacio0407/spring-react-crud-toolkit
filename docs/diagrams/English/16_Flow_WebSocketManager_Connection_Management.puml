@@ -1,0 +1,78 @@
+@startuml
+skinparam shadowing false
+skinparam conditionStyle inside
+skinparam defaultTextAlignment center
+
+title Flowchart of Connection and Subscriptions: WebSocketManager (webSocketManager.ts)
+
+start
+
+:Call initConnection();
+
+if (this.activated === true?) then (yes)
+    :Return (Connection already initiated or in progress);
+    stop
+endif
+
+partition "buildSocketUrl(): URL Construction" {
+    if (this.baseUrl is defined?) then (yes)
+        :socketUrl = this.baseUrl;
+    else (no)
+        :host = window.location.hostname\nport = window.location.port\nprotocol = "wss:";
+        if (host is local? [localhost, 127.0.0.1, 192.168.*]) then (yes)
+            :socketPort = ":8080";
+        elseif (port exists?) then (yes)
+            :socketPort = ":" + port;
+        else (no)
+            :socketPort = "";
+        endif
+        :socketUrl = protocol + "//" + host + socketPort + "/ws-upstream";
+    endif
+}
+
+partition "STOMP Client Configuration" {
+    if (this.useSockJS === true?) then (yes [SockJS])
+        :webSocketFactory = () => new SockJS(socketUrl);
+    else (no [Native WebSocket])
+        :webSocketFactory = () => new WebSocket(socketUrl);
+    endif
+
+    :Assign connection headers:\nconnectHeaders = { Authorization: "Bearer " + this.jwt };
+    :Configure reconnectDelay = 0;
+    :Assign event handlers:\nonConnect, onStompError, onWebSocketError;
+}
+
+:client.activate();
+:this.activated = true;
+
+partition "Asynchronous Event Handlers" {
+    split
+        :onConnect event triggered;
+        partition "resubscribeAll(): Automatic Resubscription" {
+            while (For each 'sub' in this.subscriptions) is (next)
+                :client.subscribe("/topic/" + sub.topic, callback);
+                :sub.stompSubscription = active subscription;
+                note right
+                  Upon message receipt:
+                  1. Tries JSON.parse(body)
+                  2. If it fails, passes body as plain text
+                  3. Executes sub.handler(parsed)
+                end note
+            endwhile (completed)
+        }
+        :Invoke events.onConnect?.();
+    split again
+        :onStompError event triggered;
+        :Log error in console;
+        :Invoke events.onError?.(frame);
+        :client.deactivate();
+    split again
+        :onWebSocketError event triggered;
+        :Log warning in console;
+        :Invoke events.onError?.(error);
+    end split
+}
+
+stop
+
+@enduml

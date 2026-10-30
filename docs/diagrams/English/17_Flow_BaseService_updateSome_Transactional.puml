@@ -1,0 +1,54 @@
+@startuml
+skinparam shadowing false
+skinparam conditionStyle inside
+skinparam defaultTextAlignment center
+
+title Flowchart of Batch Transactional Update: updateSome (BaseService.java)
+
+start
+
+:Invocation of updateSome(ids: List<I>, updatedEntities: List<T>)\n[@Transactional];
+
+partition "List Parity Validation" {
+    if (ids.size() !== updatedEntities.size()?) then (yes [Size Mismatch])
+        :Throw IllegalArgumentException\n("Ids and entities size mismatch");
+        stop
+    endif
+}
+
+:Initialize persistence list:\ntoSave = new ArrayList<T>();
+:index = 0;
+
+while (For each 'updated' in updatedEntities) is (next)
+    :id = ids.get(index);
+    
+    partition "Lookup and Existence Check (findById)" {
+        :repository.findById(id);
+        if (Entity present in DB?) then (no)
+            :Throw ResourceNotFoundException\n(Transaction Rollback);
+            stop
+        else (yes)
+            :existing = found entity;
+        endif
+    }
+
+    partition "Apply Changes" {
+        :updateEntityFields(existing, updated);
+        note right
+          Overridable protected method
+          to assign specific fields.
+        end note
+        :toSave.add(existing);
+        :index = index + 1;
+    }
+endwhile (completed)
+
+partition "Batch Persistence" {
+    :repository.saveAll(toSave);
+    :Transaction committed in Database (Commit);
+}
+
+:Return persisted entities: List<T>;
+stop
+
+@enduml

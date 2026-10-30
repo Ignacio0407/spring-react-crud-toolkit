@@ -1,0 +1,111 @@
+@startuml
+autonumber
+skinparam shadowing false
+skinparam sequence {
+    ArrowColor #2C3E50
+    LifeLineBorderColor #2C3E50
+    ParticipantBorderColor #2C3E50
+    ParticipantBackgroundColor #ECF0F1
+}
+
+title Comprehensive Component Orchestration by ListGenerator (Excluding WebSocketManager)
+
+actor "User" as User
+participant "ListGenerator" as Orchestrator
+participant "DoNotHackMyAppHelper" as Security
+participant "ListSortBar" as SortBar
+participant "SearchBar" as Search
+participant "ListPagination" as Pager
+participant "ListGeneratorHelper\n(renderData)" as TableRenderer
+participant "MassEditWizard" as Wizard
+
+== 1. Mount and Security Validation ==
+
+User -> Orchestrator: Accesses list view with dataset: T[]
+activate Orchestrator
+
+Orchestrator -> Security: navigateToUnauthorized(checkAuth, actualUser, requiredAuth)
+activate Security
+Security --> Orchestrator: Authorized (Continues rendering cycle)
+deactivate Security
+note right of Security
+  Prior permission check.
+  See sequence diagram:
+  "08_Sequence_DoNotHackMyApp_Route_Guard"
+end note
+
+== 2. Data Transformation Pipeline: Sorting ==
+
+Orchestrator -> SortBar: Render with base data (data: T[])
+activate SortBar
+
+User -> SortBar: Selects sort by column (e.g., "name DESC")
+SortBar -> Orchestrator: onSort(sortedDataset)
+deactivate SortBar
+
+Orchestrator -> Orchestrator: setSortedData(sortedDataset)
+
+== 3. Data Transformation Pipeline: Search and Filtering ==
+
+Orchestrator -> Search: Render with sorted data (data: sortedData)
+activate Search
+
+User -> Search: Enters search term (e.g., "role:ADMIN")
+Search -> Orchestrator: setFiltered(filteredSubset)
+deactivate Search
+
+Orchestrator -> Orchestrator: Applies filters over sorted dataset\n(filteredData = filtered.length ? filtered : sortedData)
+
+== 4. Pagination and Visible Data Resolution ==
+
+Orchestrator -> Orchestrator: Calculates visible segment (paginatedData = slice(start, end))
+
+Orchestrator -> Pager: Render controls (totalItems, pageSize, currentPage)
+activate Pager
+
+opt User changes page
+    User -> Pager: Clicks next page
+    Pager -> Orchestrator: onPageChange(newPage)
+    Orchestrator -> Orchestrator: setPage(newPage) and clears previous selection
+end
+deactivate Pager
+
+== 5. Item Selection and Keyboard Shortcuts ==
+
+User -> Orchestrator: Presses "Ctrl + A" in view
+Orchestrator -> Orchestrator: useCtrlAToSelectOrDeselect: toggles selection of paginatedData
+
+User -> TableRenderer: Checks individual checkboxes
+TableRenderer -> Orchestrator: toggleSelectOne(id)
+Orchestrator -> Orchestrator: setSelectedIds(new Set(...))
+
+== 6. Mass Edit Wizard Activation (MassEditWizard) ==
+
+User -> Orchestrator: Clicks "Mass Edit" (selectedItems.length > 0)
+Orchestrator -> Orchestrator: setShowMassEdit(true)
+
+Orchestrator -> Wizard: Mount modal with selectedItems: T[], massEditUri
+activate Wizard
+note right of Wizard
+  Step-by-step editing cycle, Undo/Redo history
+  and backend batch confirmation.
+  See sequence diagram:
+  "07_Sequence_MassEditWizard_UndoRedo_Persistence"
+  and activity diagram:
+  "19_Flow_MassEditWizard_UndoRedo_History"
+end note
+
+Wizard --> Orchestrator: onClose(updatedEntities)
+deactivate Wizard
+
+Orchestrator -> Orchestrator: Updates sortedData with mutated items
+Orchestrator -> Orchestrator: setShowMassEdit(false) and setSelectedIds(new Set())
+
+== 7. Unified Final Rendering ==
+
+Orchestrator -> TableRenderer: renderData({ paginatedData, selectedIds, keys, buttons })
+TableRenderer --> User: Renders rows, checkboxes, action buttons, and counters
+
+deactivate Orchestrator
+
+@enduml

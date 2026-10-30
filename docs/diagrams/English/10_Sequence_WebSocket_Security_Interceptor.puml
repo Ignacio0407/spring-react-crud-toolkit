@@ -1,0 +1,76 @@
+@startuml
+autonumber
+skinparam shadowing false
+skinparam sequence {
+    ArrowColor #2C3E50
+    LifeLineBorderColor #2C3E50
+    ParticipantBorderColor #2C3E50
+    ParticipantBackgroundColor #ECF0F1
+}
+
+title STOMP Server Security: WebSocketSecurityInterceptor (Rate Limiting and Payload)
+
+actor "WebSocket Client" as Client
+participant "SockJS / Tomcat Server" as Transport
+participant "WebSocketSecurityInterceptor" as Interceptor
+participant "JwtUtils" as JWTService
+participant "SimpleBroker (STOMP)" as Broker
+
+== 1. Authentication on STOMP Handshake (CONNECT Command) ==
+
+Client -> Interceptor: STOMP Frame: CONNECT\n[Header: Authorization: Bearer <jwt>]
+activate Interceptor
+
+Interceptor -> JWTService: validateJwtToken(jwt)
+activate JWTService
+JWTService --> Interceptor: true [Valid and intact token]
+deactivate JWTService
+
+Interceptor -> JWTService: getUserNameFromJwtToken(jwt)
+activate JWTService
+JWTService --> Interceptor: username
+deactivate JWTService
+
+Interceptor -> Interceptor: accessor.setUser(UsernamePasswordAuthenticationToken)
+Interceptor --> Broker: Allows connection and associates user to session
+deactivate Interceptor
+
+Broker --> Client: STOMP Frame: CONNECTED
+
+== 2. Rate Limiting on SUBSCRIBE ==
+
+Client -> Interceptor: STOMP Frame: SUBSCRIBE /topic/resource/{id}
+activate Interceptor
+
+Interceptor -> Interceptor: checkRateLimit(username)
+note right Interceptor
+  Atomic counter per time window:
+  Maximum 60 requests per minute per user
+  in in-memory ConcurrentHashMap.
+end note
+
+alt Rate exceeded (> 60 msg/min)
+    Interceptor --[#red]> Client: ERROR [Rate limit exceeded]
+else Rate within threshold
+    Interceptor --> Broker: Registers subscription to topic
+end
+deactivate Interceptor
+
+== 3. Payload Size Validation (SEND Command) ==
+
+Client -> Interceptor: STOMP Frame: SEND /app/endpoint\n[Payload JSON]
+activate Interceptor
+
+Interceptor -> Interceptor: payload.length <= 64 KB
+
+alt Payload exceeds 64 KB
+    Interceptor --[#red]> Client: ERROR [Payload size exceeds 64KB boundary]
+    note right Interceptor
+      Rejects messages exceeding the defined 64 KB limit.
+    end note
+else Valid payload
+    Interceptor --> Broker: Routes message to application controllers
+end
+deactivate Interceptor
+
+@enduml

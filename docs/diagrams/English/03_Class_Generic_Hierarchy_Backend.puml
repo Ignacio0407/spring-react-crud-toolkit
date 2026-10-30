@@ -1,0 +1,99 @@
+@startuml
+skinparam shadowing false
+skinparam packageStyle rectangle
+
+title Backend Generic Class Hierarchy (N-Tier Pattern in Spring Boot 3)
+
+package "1. Base Domain Layer (toolkit.model)" #F5F5F5 {
+    abstract class BaseEntity {
+        - Integer id
+        + Integer getId()
+        + void setId(Integer id)
+        + boolean isNew()
+    }
+
+    abstract class NamedEntity extends BaseEntity {
+        - String name
+        + String getName()
+        + void setName(String name)
+    }
+}
+
+package "2. Mapping Layer and DTOs (toolkit.model)" #FFF9C4 {
+    interface EntityMapper<T, D> {
+        + D toDTO(T entity)
+        + T toEntity(D dto)
+    }
+
+    class UpdateSomeDTO<I, T> {
+        - List<I> ids
+        - List<T> entities
+        + List<I> getIds()
+        + List<T> getEntities()
+    }
+}
+
+package "3. Data Access Layer (toolkit.repository)" #DCEDC8 {
+    interface BaseRepository<T, D, I> {
+        + List<D> findAllAsDTO()
+        + Optional<D> findByIdAsDTO(I id)
+    }
+}
+
+package "4. Business Service Layer (toolkit.service)" #A5D6A7 {
+    abstract class BaseService<T, I> {
+        # JpaRepository<T, I> repository
+        # String entityName
+        + List<T> findAll()
+        + T findById(I id)
+        + T save(T entity)
+        + List<T> saveAll(List<T> entities)
+        + void deleteById(I id)
+        + void delete(T entity)
+        + T update(I id, T updatedEntity)
+        + List<T> updateSome(List<I> ids, List<T> updatedEntities)
+        # T updateEntityFields(T existing, T updated)
+        + T findOrResourceNotFoundException(Optional<T> entity, String var, Object id)
+    }
+
+    abstract class BaseServiceWithDTO<T extends BaseEntity, D, I> extends BaseService {
+        # EntityMapper<T, D> mapper
+        # BaseRepository<T, D, I> dtoRepository
+        + List<D> findAllAsDTO()
+        + D findByIdAsDTO(I id)
+        + D saveAsDTO(D dto)
+        + D updateAsDTO(I id, D dto)
+        + D findDTOOrResourceNotFoundException(Optional<D> entity, I id)
+    }
+}
+
+package "5. REST Controller Layer (toolkit.controller)" #E1F5FE {
+    abstract class BaseRestController<T, I> {
+        # BaseService<T, I> service
+        + ResponseEntity<List<T>> findAll()
+        + ResponseEntity<T> findById(I id)
+        + ResponseEntity<T> save(T entity)
+        + ResponseEntity<Void> delete(I id)
+        + ResponseEntity<T> update(I id, T entity)
+        + ResponseEntity<List<T>> updateSome(UpdateSomeDTO<I, T> request)
+    }
+
+    abstract class BaseRestControllerWithDTO<T extends BaseEntity, D, I> {
+        # BaseServiceWithDTO<T, D, I> service
+        + ResponseEntity<List<D>> findAll()
+        + ResponseEntity<D> findById(I id)
+        + ResponseEntity<D> save(D dto)
+        + ResponseEntity<Void> delete(I id)
+        + ResponseEntity<D> update(I id, D dto)
+    }
+}
+
+' Structural and dependency relationships (OMG UML 2.5.1)
+BaseRestController "1" --> "1" BaseService : -service\n(constructor injection)
+BaseRestControllerWithDTO "1" --> "1" BaseServiceWithDTO : -service\n(constructor injection)
+BaseService "1" --> "1" BaseRepository : -repository\n(constructor injection)
+BaseServiceWithDTO "1" --> "1" EntityMapper : -mapper\n(bidirectional transformation)
+BaseRestController ..> UpdateSomeDTO : deserializes /some payload
+BaseService ..> UpdateSomeDTO : persists batch
+
+@enduml

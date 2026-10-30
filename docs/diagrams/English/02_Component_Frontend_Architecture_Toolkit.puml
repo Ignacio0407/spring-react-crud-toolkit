@@ -1,0 +1,62 @@
+@startuml
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam linetype ortho
+
+title Frontend Modular Component Architecture (src/components)
+
+package "Form Module" #E1F5FE {
+    component "FormGenerator.tsx\n(Declarative Forms FieldDef[])" as FormGen
+    component "EditFormGenerator.tsx\n(Schema Inference from Object)" as EditFormGen
+    component "FormInput.tsx\n(Atomic Input Renderer)" as FormInput
+}
+
+package "ListGenerator Module" #F3E5F5 {
+    component "ListGenerator.tsx\n(Main Table Orchestrator)" as ListGen
+    component "ListSortBar.tsx\n(Attribute Sort Bar)" as SortBar
+    component "ListPagination.tsx\n(Pagination Control)" as Pagination
+    component "MassEditWizard.tsx\n(Transactional Undo/Redo Wizard)" as MassEdit
+    component "ReviewModal.tsx\n(Differential Comparison Modal)" as ReviewModal
+    component "ListGeneratorHelper.tsx\n(Ctrl+A, Escape Shortcuts & Render)" as ListHelper
+}
+
+package "SearchBar Module" #E8F5E9 {
+    component "SearchBar.tsx\n(Stateful Input)" as SearchBarComp
+    component "useSearchEngine.ts\n(Hook with Debounce & Cache)" as SearchHook
+    component "searchEngine.ts\n(O(n) Engine, Filters & LRUCache)" as SearchCore
+}
+
+package "DoNotHackMyApp Module" #FFF9C4 {
+    component "DoNotHackMyApp.tsx\n(Access Denied View / Shield)" as SecurityView
+    component "DoNotHackMyAppHelper.ts\n(navigateToUnauthorized Evaluator)" as SecurityHelper
+}
+
+package "ButtonLink Module" #FCE4EC {
+    component "ButtonLink.tsx\n(Styled Reactstrap SPA Link)" as ButtonLinkComp
+}
+
+package "WebSocketManager Module" #EDE7F6 {
+    component "webSocketManager.ts\n(Encapsulated STOMP / WebSocket Client)" as WSManagerComp
+}
+
+' Internal relationships and dependencies
+EditFormGen --> FormInput : Uses to render fields
+FormGen --> FormInput : Uses to render fields
+EditFormGen ..> SecurityHelper : Validates permissions before rendering
+
+ListGen --> SortBar : Sort control
+ListGen --> Pagination : Page control
+ListGen --> SearchBarComp : Injects search into table
+ListGen --> MassEdit : Launches wizard on mass selection
+ListGen ..> ListHelper : Delegates rendering and keyboard shortcuts
+ListGen ..> SecurityHelper : Validates permissions before rendering
+
+MassEdit --> EditFormGen : Renders form for each row
+MassEdit --> ReviewModal : Displays pending changes before PUT
+
+SearchBarComp --> SearchHook : Consumes reactive hook
+SearchHook --> SearchCore : Invokes searchData and manages LRUCache
+
+SecurityHelper ..> SecurityView : Redirects to lock route (/do-not-hack-my-app)
+
+@enduml
