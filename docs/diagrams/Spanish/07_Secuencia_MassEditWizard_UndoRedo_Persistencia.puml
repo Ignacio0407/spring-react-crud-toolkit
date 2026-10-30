@@ -1,0 +1,93 @@
+@startuml
+autonumber
+skinparam shadowing false
+skinparam sequence {
+    ArrowColor #2C3E50
+    LifeLineBorderColor #2C3E50
+    ParticipantBorderColor #2C3E50
+    ParticipantBackgroundColor #ECF0F1
+}
+
+title Ciclo de Edición Masiva (MassEditWizard): Revisión y Persistencia Atómica
+
+actor "Administrador" as Admin
+participant "MassEditWizard" as Wizard
+participant "EditFormGenerator" as Form
+participant "ReviewModal" as Review
+participant "BaseRestController" as Controller
+participant "BaseService" as Service
+participant "BaseRepository" as Repo
+
+== 1. Inicialización del Historial de Versiones ==
+
+Wizard -> Wizard: Inicializa historial de edición (original, versions, activeVersion)
+activate Wizard
+
+== 2. Edición Secuencial con Historial de Versiones (Undo / Redo) ==
+
+loop Para cada elemento seleccionado (activeIndex = 0 .. N-1)
+    Wizard -> Form: Renderizar formulario con entidad activa
+    Admin -> Form: Modifica campos y pulsa "Update & Next"
+    Form -> Wizard: applyUpdate(updatedEntity)
+
+    Wizard -> Wizard: Registrar cambios en el historial
+    note right of Wizard
+        Gestiona las versiones y la
+        versión activa en memoria.
+        Véase diagrama de actividades:
+        "19_Flujo_MassEditWizard_Historial_UndoRedo"
+    end note
+end
+
+== 3. Revisión Comparativa de Cambios (ReviewModal) ==
+
+Admin -> Wizard: Pulsa botón "Review"
+Wizard -> Review: Abre modal comparativo pasando originals[] y updated[]
+activate Review
+
+Review -> Admin: Muestra comparativa diferencial campo a campo
+Admin -> Review: Revisa diferencias y pulsa "Confirm Changes"
+
+Review -> Wizard: onConfirm()
+deactivate Review
+
+== 4. Envío por Lotes y Persistencia Atómica en Backend ==
+
+Wizard -> Wizard: Obtiene ediciones confirmadas (activeVersion >= 0)
+
+Wizard -> Controller: PUT /api/v1/resource/some\n[Payload: UpdateSomeDTO { ids: [...], entities: [...] }]
+activate Controller
+
+Controller -> Service: updateSome(request.getIds(), request.getEntities())
+activate Service
+
+Service -> Service: Valida paridad: ids.size() == updatedEntities.size()
+note right of Service
+  Ejecución atómica transaccional (@Transactional).
+  Comprueba existencia, invoca hook updateEntityFields
+  y realiza rollback si falla algún elemento.
+  Véase diagrama de actividades:
+  "17_Flujo_BaseService_updateSome_Transaccional"
+end note
+
+loop Para cada id y entidad en el lote
+    Service -> Repo: findById(id)
+    Service -> Service: updateEntityFields(existing, updated)
+    Service -> Service: toSave.add(existing)
+end
+
+Service -> Repo: saveAll(toSave)
+activate Repo
+Repo --> Service: savedEntities: List<T>
+deactivate Repo
+
+Service --> Controller: savedEntities
+deactivate Service
+
+Controller --> Wizard: 200 OK [JSON con entidades persistidas]
+deactivate Controller
+
+Wizard --> Admin: Cierra modal y refresca tabla del ListGenerator con datos consolidados
+deactivate Wizard
+
+@enduml

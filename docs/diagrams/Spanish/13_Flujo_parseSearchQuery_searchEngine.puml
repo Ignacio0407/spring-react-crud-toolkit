@@ -1,0 +1,69 @@
+@startuml
+skinparam shadowing false
+skinparam conditionStyle inside
+skinparam defaultTextAlignment center
+
+title Diagrama de Flujo del Algoritmo parseSearchQuery (searchEngine.ts - O(n) Single-Pass)
+
+start
+
+:Recibe cadena query: string;
+:Inicializar diccionario vacío:\nfilters = {};
+
+if (query.trim() está vacía?) then (sí)
+    :Retornar filters vacío;
+    stop
+else (no)
+    :Inicializar índice del cursor:\ni = 0;
+endif
+
+while (i < query.length?) is (sí)
+    if (isKeyChar(query[i])?) then (no)
+        :Avanzar cursor un carácter:\ni = i + 1;
+    else (sí)
+        partition "parseEntry(query, i, filters)" {
+            :Avanzar hasta fin de clave:\nkeyEnd = advanceWhile(query, i, isKeyChar);
+            :Saltar espacios en blanco:\ncolon = skipWs(query, keyEnd);
+            
+            if (query[colon] === ":") then (no)
+                :Avanzar cursor directamente a keyEnd\n(i = keyEnd);
+            else (sí)
+                :Saltar espacios tras dos puntos:\nvalueStart = skipWs(query, colon + 1);
+                
+                if (query[valueStart] === '"') then (sí [Valor Entrecomillado])
+                    :Buscar comilla de cierre:\nk = query.indexOf('"', valueStart + 1);
+                    if (k !== -1?) then (sí)
+                        :raw = query.slice(valueStart + 1, k)\nvalueEnd = k + 1;
+                    else (no [Comilla no cerrada])
+                        :parsed = null;
+                    endif
+                else (no [Valor Simple])
+                    :Avanzar hasta siguiente espacio:\nk = advanceWhile(query, valueStart, !isWs);
+                    if (k > valueStart?) then (sí)
+                        :raw = query.slice(valueStart, k)\nvalueEnd = k;
+                    else (no)
+                        :parsed = null;
+                    endif
+                endif
+                
+                if (parsed !== null?) then (sí)
+                    partition "addFilter(filters, attr, raw)" {
+                        :Extraer clave:\nattr = query.slice(i, keyEnd).trim();
+                        :Separar valores por coma:\nvalues = raw.split(",").map(trim).filter(Boolean);
+                        if (values.length > 0?) then (sí)
+                            :Registrar filtro:\nfilters[attr] = values;
+                        endif
+                    }
+                    :Avanzar cursor al fin del valor:\ni = parsed.valueEnd;
+                else (no)
+                    :Fallo de valor:\ni = keyEnd;
+                endif
+            endif
+        }
+    endif
+endwhile (no)
+
+:Retornar filters con todos los criterios extraídos;
+stop
+
+@enduml

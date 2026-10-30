@@ -1,0 +1,54 @@
+@startuml
+skinparam shadowing false
+skinparam conditionStyle inside
+skinparam defaultTextAlignment center
+
+title Diagrama de Flujo de Actualización en Bloque Transaccional: updateSome (BaseService.java)
+
+start
+
+:Invocación de updateSome(ids: List<I>, updatedEntities: List<T>)\n[@Transactional];
+
+partition "Validación de Paridad de Listas" {
+    if (ids.size() !== updatedEntities.size()?) then (sí [Discrepancia de Tamaños])
+        :Lanzar IllegalArgumentException\n("Ids and entities size mismatch");
+        stop
+    endif
+}
+
+:Inicializar lista de persistencia:\ntoSave = new ArrayList<T>();
+:index = 0;
+
+while (Para cada 'updated' en updatedEntities) is (siguiente)
+    :id = ids.get(index);
+    
+    partition "Búsqueda y Verificación de Existencia (findById)" {
+        :repository.findById(id);
+        if (Entidad presente en BD?) then (no)
+            :Lanzar ResourceNotFoundException\n(Rollback de la transacción);
+            stop
+        else (sí)
+            :existing = entidad encontrada;
+        endif
+    }
+
+    partition "Aplicación de Cambios" {
+        :updateEntityFields(existing, updated);
+        note right
+          Método protegido sobreescribible
+          para asignar campos específicos.
+        end note
+        :toSave.add(existing);
+        :index = index + 1;
+    }
+endwhile (completado)
+
+partition "Persistencia en Lote" {
+    :repository.saveAll(toSave);
+    :Transacción confirmada en Base de Datos (Commit);
+}
+
+:Retornar entidades persistidas: List<T>;
+stop
+
+@enduml

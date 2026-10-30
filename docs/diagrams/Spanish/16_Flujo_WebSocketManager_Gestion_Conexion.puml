@@ -1,0 +1,78 @@
+@startuml
+skinparam shadowing false
+skinparam conditionStyle inside
+skinparam defaultTextAlignment center
+
+title Diagrama de Flujo de Conexión y Suscripciones: WebSocketManager (webSocketManager.ts)
+
+start
+
+:Llamada a initConnection();
+
+if (this.activated === true?) then (sí)
+    :Retornar (Conexión ya iniciada o en curso);
+    stop
+endif
+
+partition "buildSocketUrl(): Construcción de la URL" {
+    if (this.baseUrl está definida?) then (sí)
+        :socketUrl = this.baseUrl;
+    else (no)
+        :host = window.location.hostname\nport = window.location.port\nprotocol = "wss:";
+        if (host es local? [localhost, 127.0.0.1, 192.168.*]) then (sí)
+            :socketPort = ":8080";
+        elseif (port existe?) then (sí)
+            :socketPort = ":" + port;
+        else (no)
+            :socketPort = "";
+        endif
+        :socketUrl = protocol + "//" + host + socketPort + "/ws-upstream";
+    endif
+}
+
+partition "Configuración de STOMP Client" {
+    if (this.useSockJS === true?) then (sí [SockJS])
+        :webSocketFactory = () => new SockJS(socketUrl);
+    else (no [WebSocket Nativo])
+        :webSocketFactory = () => new WebSocket(socketUrl);
+    endif
+
+    :Asignar cabeceras de conexión:\nconnectHeaders = { Authorization: "Bearer " + this.jwt };
+    :Configurar reconnectDelay = 0;
+    :Asignar manejadores de eventos:\nonConnect, onStompError, onWebSocketError;
+}
+
+:client.activate();
+:this.activated = true;
+
+partition "Manejadores de Eventos Asíncronos" {
+    split
+        :Evento onConnect disparado;
+        partition "resubscribeAll(): Re-suscripción Automática" {
+            while (Para cada 'sub' en this.subscriptions) is (siguiente)
+                :client.subscribe("/topic/" + sub.topic, callback);
+                :sub.stompSubscription = suscripción activa;
+                note right
+                  Al recibir mensaje:
+                  1. Intenta JSON.parse(body)
+                  2. Si falla, pasa body como texto plano
+                  3. Ejecuta sub.handler(parsed)
+                end note
+            endwhile (completado)
+        }
+        :Invocar events.onConnect?.();
+    split again
+        :Evento onStompError disparado;
+        :Registrar error en consola;
+        :Invocar events.onError?.(frame);
+        :client.deactivate();
+    split again
+        :Evento onWebSocketError disparado;
+        :Registrar advertencia en consola;
+        :Invocar events.onError?.(error);
+    end split
+}
+
+stop
+
+@enduml

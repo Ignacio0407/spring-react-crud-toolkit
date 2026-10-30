@@ -1,0 +1,92 @@
+@startuml
+autonumber
+skinparam shadowing false
+skinparam sequence {
+    ArrowColor #2C3E50
+    LifeLineBorderColor #2C3E50
+    ParticipantBorderColor #2C3E50
+    ParticipantBackgroundColor #ECF0F1
+}
+
+title Ciclo de Vida y Gestión de Suscripciones en Cliente (WebSocketManager)
+
+actor "Componente React" as View
+participant "WebSocketManager" as Manager
+participant "buildSocketUrl()" as UrlResolver
+participant "Client (@stomp/stompjs)" as StompClient
+participant "Transporte (WS / SockJS)" as Transport
+participant "Servidor STOMP" as Server
+
+== 1. Instanciación y Registro Previo de Suscripciones ==
+
+View -> Manager: new WebSocketManager(jwt, { useSockJS, events })
+activate Manager
+
+View -> Manager: addSubscription("resource/123", handlerCallback)
+Manager -> Manager: subscriptions.push({ topic: "resource/123", handler })
+note right Manager
+  Las suscripciones se encolan en memoria
+  antes de abrir la conexión de red.
+end note
+
+== 2. Negociación y Establecimiento de Conexión ==
+
+View -> Manager: initConnection()
+opt activated === true
+    Manager --> View: Retorno anticipado (Ya conectado)
+end
+
+Manager -> UrlResolver: buildSocketUrl()
+activate UrlResolver
+UrlResolver --> Manager: socketUrl
+deactivate UrlResolver
+note right of UrlResolver
+  Resolución algorítmica de host, puerto y protocolo.
+  Véase diagrama de actividades:
+  "16_Flujo_WebSocketManager_Gestion_Conexion"
+end note
+
+Manager -> StompClient: new Client({ connectHeaders: { Authorization: "Bearer <jwt>" } })
+activate StompClient
+
+Manager -> StompClient: client.activate()
+Manager -> Manager: activated = true
+
+StompClient -> Transport: Iniciar socket (SockJS o WebSocket nativo)
+activate Transport
+Transport -> Server: Handshake HTTP / Upgrade a WebSocket
+Server --> Transport: 101 Switching Protocols
+
+StompClient -> Server: STOMP Frame: CONNECT (Authorization: Bearer <jwt>)
+Server --> StompClient: STOMP Frame: CONNECTED
+deactivate Transport
+
+== 3. Re-suscripción Automática (resubscribeAll) y Despacho de Eventos ==
+
+StompClient -> Manager: onConnect()
+Manager -> Manager: resubscribeAll()
+
+loop Para cada subscripción en subscriptions[]
+    Manager -> StompClient: subscribe("/topic/" + sub.topic, callback)
+    StompClient -> Server: STOMP Frame: SUBSCRIBE /topic/resource/123
+end
+
+Manager -> View: events.onConnect?.()
+
+... Comunicación en Tiempo Real ...
+
+Server -> StompClient: STOMP Frame: MESSAGE (body: JSON)
+StompClient -> Manager: Invoca callback registrado
+Manager -> Manager: JSON.parse(message.body)
+Manager -> View: handlerCallback(parsedData)
+
+== 4. Cierre y Desconexión ==
+
+View -> Manager: deactivate()
+Manager -> StompClient: client.deactivate()
+deactivate StompClient
+Manager -> Manager: activated = false
+Manager -> Manager: subscriptions = []
+deactivate Manager
+
+@enduml

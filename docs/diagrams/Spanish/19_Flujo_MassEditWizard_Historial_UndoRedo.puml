@@ -1,0 +1,100 @@
+@startuml
+skinparam shadowing false
+skinparam conditionStyle inside
+skinparam defaultTextAlignment center
+
+title Diagrama de Flujo del Historial de Versiones y Undo/Redo (MassEditWizard.tsx)
+
+start
+
+:Recibe items: readonly T[], massEditUri: string;
+
+partition "Inicialización del Historial de Versiones" {
+    :Inicializar historial reactivo:\neditHistory = items.map(item => ({\n  original: structuredClone(item),\n  versions: [],\n  activeVersion: -1\n}));
+    :activeIndex = 0\nshowReview = false;
+}
+
+while (Asistente abierto y usuario interactúa) is (evento de usuario)
+    :current = editHistory[activeIndex];
+    
+    partition "Resolución de la Entidad Activa" {
+        if (current.activeVersion >= 0?) then (sí [Versión previa])
+            :currentEntity = current.versions[current.activeVersion];
+        else (no [Sin cambios])
+            :currentEntity = current.original;
+        endif
+    }
+
+    if (Acción disparada por el usuario?) then (Modificar: applyUpdate)
+        partition "applyUpdate(updatedEntity)" {
+            if (hasChanges(currentEntity, updatedEntity)?) then (sí [Existen diferencias])
+                :Truncar versiones futuras tras posible Undo:\nv = versions.slice(0, activeVersion + 1);
+                :Añadir nueva versión clonada:\nv.push(structuredClone(updatedEntity));
+                :Actualizar puntero de versión activa:\nactiveVersion = v.length - 1;
+                :Guardar tupla actualizada en editHistory[activeIndex];
+            else (no [Sin cambios reales])
+                :Mantener historial intacto;
+            endif
+
+            :Avanzar índice si no es el último:\nactiveIndex = Math.min(activeIndex + 1, items.length - 1);
+
+            if (activeIndex === items.length - 1?) then (sí [Último elemento])
+                :showReview = true\n[Habilita botón Review];
+            endif
+        }
+
+    elseif (Acción disparada por el usuario?) then (Deshacer: undo)
+        partition "Operación Undo" {
+            if (current.activeVersion >= 0?) then (sí)
+                :Decrementar puntero:\ncurrent.activeVersion--;
+                note right
+                  Si activeVersion llega a -1,
+                  currentEntity revierte
+                  a current.original.
+                end note
+            else (no [Ya en estado original])
+                :Operación deshabilitada;
+            endif
+        }
+
+    elseif (Acción disparada por el usuario?) then (Rehacer: redo)
+        partition "Operación Redo" {
+            if (current.activeVersion < current.versions.length - 1?) then (sí)
+                :Incrementar puntero:\ncurrent.activeVersion++;
+                note right
+                  Avanza a la siguiente versión
+                  previamente registrada
+                  sin peticiones de red.
+                end note
+            else (no [En última versión])
+                :Operación deshabilitada;
+            endif
+        }
+
+    elseif (Acción disparada por el usuario?) then (Confirmar: confirmAll)
+        partition "confirmAll(): Filtrado y Persistencia Atómica" {
+            :Filtrar elementos con ediciones válidas:\nchanged = editHistory.filter(t => t.activeVersion >= 0 && t.versions.length > 0);
+
+            if (changed.length === 0?) then (sí [Sin modificaciones])
+                :onClose(null)\n[Cerrar asistente sin peticiones];
+                stop
+            else (no [Hay cambios pendientes])
+                :Construir payload UpdateSomeDTO:\nids = changed.map(c => c.id)\nentities = changed.map(c => c.versions[c.activeVersion]);
+                :put(massEditUri, jwt, { ids, entities });
+                note right
+                  Petición HTTP PUT /some enviada al backend.
+                  Persistencia atómica transaccional (@Transactional).
+                  Véase diagrama de actividades:
+                  "17_Flujo_BaseService_updateSome_Transaccional"
+                end note
+                :onClose(updatedEntities);
+                stop
+            endif
+        }
+    endif
+endwhile (usuario cierra o cancela)
+
+:onClose(null);
+stop
+
+@enduml

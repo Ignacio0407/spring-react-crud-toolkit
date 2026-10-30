@@ -1,0 +1,77 @@
+@startuml
+autonumber
+skinparam shadowing false
+skinparam sequence {
+    ArrowColor #2C3E50
+    LifeLineBorderColor #2C3E50
+    ParticipantBorderColor #2C3E50
+    ParticipantBackgroundColor #ECF0F1
+}
+
+title Ciclo Global de Seguridad: Autenticación JWT y Autorización Multi-Protocolo
+
+actor "Usuario" as User
+
+box "Frontend (Cliente SPA)" #E3F2FD
+    participant "Vista de Autenticación\n(Host Application)" as LoginView
+    participant "tokenService\n(LocalStorage)" as TokenStorage
+end box
+
+box "Backend: Aplicación Host" #FFF9C4
+    participant "AuthController\n(Endpoint de Login)" as AuthAPI
+    participant "AuthenticationManager\n(Spring Security)" as AuthManager
+end box
+
+box "Backend: Framework Toolkit (toolkit.*)" #F1F8E9
+    participant "JwtUtils\n(Generación y Validación)" as JWTService
+    participant "AuthTokenFilter\n(Intercepción REST)" as RESTFilter
+    participant "Controladores Protegidos\n(BaseRestController)" as Controllers
+end box
+
+== 1. Autenticación Inicial y Emisión de Token ==
+
+User -> LoginView: Introduce credenciales (username y password)
+LoginView -> AuthAPI: POST /api/v1/auth/signin\n[Payload: LoginRequest { username, password }]
+activate AuthAPI
+
+AuthAPI -> AuthManager: authenticate(UsernamePasswordAuthenticationToken)
+activate AuthManager
+AuthManager --> AuthAPI: Authentication (UserDetails autenticado)
+deactivate AuthManager
+
+AuthAPI -> JWTService: generateJwtToken(authentication)
+activate JWTService
+JWTService --> AuthAPI: jwtString (Token firmado con HMAC-SHA256)
+deactivate JWTService
+
+AuthAPI --> LoginView: 200 OK [JwtResponse { token, id, username, roles }]
+deactivate AuthAPI
+
+LoginView -> TokenStorage: setLocalAccessToken(token)
+LoginView -> User: Redirige a pantalla principal de la aplicación
+
+== 2. Consumo de Endpoints REST Protegidos ==
+
+User -> LoginView: Navega a sección protegida (ej. /users)
+LoginView -> RESTFilter: GET /api/v1/users\n[Cabecera: Authorization: Bearer <token>]
+activate RESTFilter
+
+RESTFilter -> JWTService: validateJwtToken(token)
+activate JWTService
+JWTService --> RESTFilter: true
+deactivate JWTService
+
+RESTFilter -> JWTService: getUserNameFromJwtToken(token)
+activate JWTService
+JWTService --> RESTFilter: username
+deactivate JWTService
+
+RESTFilter -> RESTFilter: SecurityContextHolder.getContext().setAuthentication(auth)
+RESTFilter -> Controllers: Continúa la cadena de filtros (FilterChain)
+activate Controllers
+
+Controllers --> LoginView: 200 OK [Datos protegidos serializados]
+deactivate Controllers
+deactivate RESTFilter
+
+@enduml

@@ -1,0 +1,43 @@
+@startuml
+skinparam shadowing false
+skinparam conditionStyle inside
+skinparam defaultTextAlignment center
+
+title Diagrama de Flujo de Evaluación de Permisos: navigateToUnauthorized (DoNotHackMyAppHelper.ts)
+
+start
+
+:Invocación de navigateToUnauthorized\n(checkAuth, actualUser, requiredAuth, navigate, onUnauthorizedRedirect);
+
+:userHasAuth = null;
+
+partition "Árbol de Evaluación de Autorización" {
+    if (typeof checkAuth === "function" && requiredAuth?) then (sí [Función checkAuth])
+        :userHasAuth = checkAuth(requiredAuth);
+    elseif (requiredAuth && checkAuth === true?) then (sí [Permitido])
+        :userHasAuth = true;
+    elseif (requiredAuth && actualUser && checkAuth === undefined?) then (sí [Por defecto])
+        partition "checkAuthDefault(required, actualUser)" {
+            if (actualUser.roles y actualUser.roles[0] !== Authority.ADMIN?) then (sí [Usuario Estándar])
+                :userHasAuth = (requiredAuth === actualUser.roles[0]);
+            else (no [Rol ADMIN])
+                :userHasAuth = true;
+            endif
+        }
+    else (no requerido o sin usuario)
+        :userHasAuth = null;
+    endif
+}
+
+partition "Resolución de Acceso y Redirección" {
+    if (!userHasAuth?) then (sí [Acceso Denegado])
+        :navigate(onUnauthorizedRedirect || "/do-not-hack-my-app");
+        :Retornar null\n[Interrumpe renderizado];
+        stop
+    else (no [Acceso Autorizado])
+        :Permitir continuación del renderizado;
+        stop
+    endif
+}
+
+@enduml

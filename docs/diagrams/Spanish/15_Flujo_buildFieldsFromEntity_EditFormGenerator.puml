@@ -1,0 +1,63 @@
+@startuml
+skinparam shadowing false
+skinparam conditionStyle inside
+skinparam defaultTextAlignment center
+
+title Diagrama de Flujo de Inferencia de Esquemas: buildFieldsFromEntity (EditFormGenerator.tsx)
+
+start
+
+:Recibe entity: object | null,\nselectOptions: Record<string, string[]>,\nfieldConfig: Record<string, Partial<FieldDef>>;
+
+if (entity === null?) then (sí)
+    :Retornar array vacío: [];
+    stop
+endif
+
+:Extraer claves del objeto:\nkeys = Object.keys(entity);
+:Filtrar identificador primario:\nkeysFiltradas = keys.filter(k => k !== 'id');
+
+:Inicializar array de campos:\nfields = [];
+
+while (Para cada 'key' en keysFiltradas) is (siguiente)
+    :value = entity[key];
+
+    partition "Árbol de Decisión de Inferencia de Tipos" {
+        if (selectOptions[key] está definido?) then (sí)
+            :type = 'select';\nvalues = selectOptions[key];
+        elseif (typeof value === 'number'?) then (sí)
+            :type = 'number';
+        elseif (typeof value === 'boolean'?) then (sí)
+            :type = 'checkbox';
+        elseif (value instanceof Date?) then (sí)
+            :type = 'date';
+        elseif (Array.isArray(value)?) then (sí)
+            :type = 'select';\nvalues = value;
+        elseif (key.toLowerCase().includes('password')?) then (sí)
+            :type = 'password';
+        elseif (key.toLowerCase().includes('email')?) then (sí)
+            :type = 'email';
+        else (por defecto)
+            :type = 'text';
+        endif
+    }
+
+    partition "Construcción del Descriptor FieldDef" {
+        :Generar etiqueta visible:\ntag = key.charAt(0).toUpperCase() + key.slice(1);
+        
+        if (type === 'checkbox'?) then (sí)
+            :defaultValue = String(value);
+        else (no)
+            :defaultValue = String(value ?? '');
+        endif
+
+        :Construir objeto FieldDef:\nfield = {\n  tag,\n  name: key,\n  type,\n  defaultValue,\n  values,\n  ...fieldConfig[key]\n};
+        
+        :fields.push(field);
+    }
+endwhile (fin de claves)
+
+:Retornar fields: FieldDef[];
+stop
+
+@enduml

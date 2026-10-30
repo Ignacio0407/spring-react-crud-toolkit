@@ -1,0 +1,58 @@
+@startuml
+autonumber
+skinparam shadowing false
+skinparam sequence {
+    ArrowColor #2C3E50
+    LifeLineBorderColor #2C3E50
+    ParticipantBorderColor #2C3E50
+    ParticipantBackgroundColor #ECF0F1
+}
+
+title Manejo Centralizado de Excepciones con Spring Boot (@RestControllerAdvice)
+
+actor "Cliente (Frontend)" as Client
+participant "DispatcherServlet (Spring MVC)" as Dispatcher
+participant "BaseRestController" as Controller
+participant "BaseService" as ServiceLayer
+participant "BaseRepository" as Repository
+participant "ExceptionHandlerController (@RestControllerAdvice)" as AdviceHandler
+
+== 1. Petición y Detección de Recurso Inexistente ==
+
+Client -> Dispatcher: GET /api/v1/resource/999
+activate Dispatcher
+
+Dispatcher -> Controller: findById(999)
+activate Controller
+
+Controller -> ServiceLayer: findById(999)
+activate ServiceLayer
+
+ServiceLayer -> Repository: findById(999)
+activate Repository
+Repository --> ServiceLayer: Optional.empty()
+deactivate Repository
+
+ServiceLayer -> ServiceLayer: findOrResourceNotFoundException(Optional.empty(), "ID", 999)
+ServiceLayer --[#red]> Controller: throw new ResourceNotFoundException("Resource not found with ID: 999")
+deactivate ServiceLayer
+
+Controller --[#red]> Dispatcher: Propagación de excepción no capturada
+deactivate Controller
+
+== 2. Intercepción Transversal y Formato Estandarizado ==
+
+Dispatcher -> AdviceHandler: Resolver excepción mediante HandlerExceptionResolver
+activate AdviceHandler
+note over AdviceHandler
+  @ExceptionHandler(ResourceNotFoundException.class)
+  Construye DTO normalizado ErrorMessage con timestamp, código y mensaje.
+end note
+
+AdviceHandler --> Dispatcher: ResponseEntity<ErrorMessage> [HTTP 404 Not Found]
+deactivate AdviceHandler
+
+Dispatcher --> Client: 404 Not Found\n{\n  "statusCode": 404,\n  "timestamp": "2026-10-28T12:00:00Z",\n  "message": "Resource not found with ID: 999",\n  "description": "uri=/api/v1/resource/999"\n}
+deactivate Dispatcher
+
+@enduml

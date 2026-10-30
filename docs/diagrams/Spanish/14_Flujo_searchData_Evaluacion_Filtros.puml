@@ -1,0 +1,95 @@
+@startuml
+skinparam shadowing false
+skinparam conditionStyle inside
+skinparam defaultTextAlignment center
+
+title Diagrama de Flujo del Pipeline de Búsqueda y Caché LRU (useSearchEngine & searchData)
+
+start
+
+:Recibe dataset: T[], query: string, options: SearchOptions;
+
+partition "Orquestación en Hook React (useSearchEngine.ts)" {
+    if (query.trim() está vacía?) then (sí)
+        :Retornar dataset original sin procesar;
+        stop
+    endif
+
+    :Generar clave de consulta única:\ncacheKey = JSON.stringify({ q: query.trim(), o: options });
+
+    if (cache.has(cacheKey)?) then (sí [Cache Hit])
+        :Mover clave al final (Más recientemente usada);\nRetornar resultados cacheados;
+        stop
+    else (no [Cache Miss])
+        :Continuar a ejecución de searchData(dataset, query, options);
+    endif
+}
+
+partition "Evaluación de Criterios de Filtrado (searchData en searchEngine.ts)" {
+    :parseSearchQuery(query) -> filters;
+    note right
+      Tokenizador manual O(n) single-pass.
+      Véase diagrama de actividades:
+      "13_Flujo_parseSearchQuery_searchEngine"
+    end note
+
+    :entries = Object.entries(filters);
+
+    if (entries.length === 0?) then (sí [Sin filtros válidos])
+        :Retornar dataset original;
+        stop
+    endif
+
+    :Inicializar lista de resultados:\nfilteredResults = [];
+
+    while (Para cada elemento 'item' en dataset) is (siguiente)
+        partition "Evaluación de Criterios (matchesAttr)" {
+            :boolean itemMatches = (operator === "AND");
+
+            while (Para cada [attr, values] en entries) is (siguiente)
+                :Resolver ruta de acceso:\npath = attributeMap[attr] || attr;
+                :Extraer valor anidado:\nraw = getNestedValue(item, path);
+                :Convertir a cadena:\nstr = toComparableRaw(raw);
+                
+                if (options.caseSensitive?) then (sí)
+                    :haystack = str;
+                else (no)
+                    :haystack = normalizeLoose(str)\n[normalización sin tildes ni símbolos];
+                endif
+
+                :Evaluar coincidencia con valores:\nmatchedValue = values.some(v => compare(haystack, prepare(v), mode));
+                
+                note right
+                  compare evalúa según matchMode:
+                  - "exact": haystack === needle
+                  - "contains": haystack.includes(needle)
+                  - "startsWith": haystack.startsWith(needle)
+                end note
+
+                if (operator === "AND" y !matchedValue) then (fallo AND)
+                    :itemMatches = false;
+                    break
+                elseif (operator === "OR" y matchedValue) then (éxito OR)
+                    :itemMatches = true;
+                    break
+                endif
+            endwhile (fin atributos)
+
+            if (itemMatches?) then (sí)
+                :filteredResults.push(item);
+            endif
+        }
+    endwhile (fin dataset)
+}
+
+partition "Actualización de Caché LRU (useSearchEngine.ts)" {
+    if (cache.size >= cache.capacity?) then (sí [Capacidad alcanzada])
+        :Eliminar entrada más antigua (oldest key);
+    endif
+    :cache.set(cacheKey, filteredResults);
+}
+
+:Retornar filteredResults;
+stop
+
+@enduml

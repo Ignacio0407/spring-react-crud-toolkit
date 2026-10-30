@@ -1,0 +1,84 @@
+@startuml
+autonumber
+skinparam shadowing false
+skinparam sequence {
+    ArrowColor #2C3E50
+    LifeLineBorderColor #2C3E50
+    ParticipantBorderColor #2C3E50
+    ParticipantBackgroundColor #ECF0F1
+}
+
+title Inferencia Dinámica de Esquemas y Ciclo de Vida de Formularios (FormGenerator & EditFormGenerator)
+
+actor "Usuario" as User
+participant "EditFormGenerator" as FormView
+participant "buildFieldsFromEntity" as SchemaInfer
+participant "useForm (React Hook Form)" as HookForm
+participant "FormInput" as AtomicInput
+participant "Backend REST API" as Backend
+
+== 1. Carga de Entidad e Inferencia de Esquema ==
+
+User -> FormView: Abre formulario de edición con entityToEdit (o vía ruta URL)
+activate FormView
+
+opt entityToEdit es nulo (Carga diferida por URL)
+    FormView -> Backend: GET /api/v1/resource/{id}
+    Backend --> FormView: 200 OK [JSON con atributos de la entidad]
+end
+
+FormView -> SchemaInfer: buildFieldsFromEntity(entity, selectOptions, fieldConfig)
+activate SchemaInfer
+SchemaInfer --> FormView: fields: FieldDef[]
+deactivate SchemaInfer
+note right of SchemaInfer
+  Inferencia dinámica del esquema a partir del objeto en memoria.
+  Filtra identificador primario y deduce tipos de control (select, text, number, etc.).
+  Véase diagrama de actividades:
+  "15_Flujo_buildFieldsFromEntity_EditFormGenerator"
+end note
+
+== 2. Inicialización de Estado no Controlado ==
+
+FormView -> HookForm: useForm<T>({ defaultValues: entity })
+activate HookForm
+HookForm --> FormView: { register, handleSubmit, formState: { errors, isSubmitting } }
+deactivate HookForm
+
+loop Para cada campo en fields: FieldDef[]
+    FormView -> AtomicInput: Renderizar FormInput(field, register, errors)
+    AtomicInput -> AtomicInput: Vincula ref no controlada mediante register(name)
+end
+
+== 3. Edición de Datos en Cliente ==
+
+User -> AtomicInput: Introduce texto y modifica controles
+note right AtomicInput
+  React Hook Form gestiona las entradas mediante referencias no controladas,
+  optimizando los renderizados del formulario.
+end note
+
+== 4. Envío, Validación y Persistencia ==
+
+User -> FormView: Pulsa botón "Guardar" / Submit
+FormView -> HookForm: handleSubmit(onSubmit)(event)
+activate HookForm
+
+alt Formulario contiene errores de validación
+    HookForm -> FormView: Actualiza formState.errors
+    FormView -> AtomicInput: Muestra mensajes de error en rojo bajo los campos afectados
+else Formulario válido
+    HookForm -> FormView: Invoca callback onSubmit(formData)
+    deactivate HookForm
+    
+    FormView -> Backend: PUT /api/v1/resource/{id} [Payload: JSON serializado]
+    activate Backend
+    Backend --> FormView: 200 OK [Entidad actualizada]
+    deactivate Backend
+    
+    FormView -> User: Muestra confirmación o redirige a la tabla
+end
+
+deactivate FormView
+
+@enduml

@@ -1,0 +1,62 @@
+@startuml
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam linetype ortho
+
+title Arquitectura Modular de Componentes del Frontend (src/components)
+
+package "Módulo Form" #E1F5FE {
+    component "FormGenerator.tsx\n(Formularios Declarativos FieldDef[])" as FormGen
+    component "EditFormGenerator.tsx\n(Inferencia de Esquemas desde Objeto)" as EditFormGen
+    component "FormInput.tsx\n(Renderizador Atómico de Inputs)" as FormInput
+}
+
+package "Módulo ListGenerator" #F3E5F5 {
+    component "ListGenerator.tsx\n(Orquestador Principal de Tablas)" as ListGen
+    component "ListSortBar.tsx\n(Barra de Ordenación por Atributo)" as SortBar
+    component "ListPagination.tsx\n(Control de Paginación)" as Pagination
+    component "MassEditWizard.tsx\n(Asistente Transaccional Undo/Redo)" as MassEdit
+    component "ReviewModal.tsx\n(Modal de Comparativa Diferencial)" as ReviewModal
+    component "ListGeneratorHelper.tsx\n(Atajos Ctrl+A, Escape y Render)" as ListHelper
+}
+
+package "Módulo SearchBar" #E8F5E9 {
+    component "SearchBar.tsx\n(Input con Control de Estado)" as SearchBarComp
+    component "useSearchEngine.ts\n(Hook con Debounce y Caché)" as SearchHook
+    component "searchEngine.ts\n(Motor O(n), Filtros y LRUCache)" as SearchCore
+}
+
+package "Módulo DoNotHackMyApp" #FFF9C4 {
+    component "DoNotHackMyApp.tsx\n(Vista de Bloqueo / Escudo)" as SecurityView
+    component "DoNotHackMyAppHelper.ts\n(Evaluador navigateToUnauthorized)" as SecurityHelper
+}
+
+package "Módulo ButtonLink" #FCE4EC {
+    component "ButtonLink.tsx\n(Enlace SPA Estilizado Reactstrap)" as ButtonLinkComp
+}
+
+package "Módulo WebSocketManager" #EDE7F6 {
+    component "webSocketManager.ts\n(Cliente STOMP / WebSocket Encapsulado)" as WSManagerComp
+}
+
+' Relaciones internas y dependencias
+EditFormGen --> FormInput : Usa para renderizar campos
+FormGen --> FormInput : Usa para renderizar campos
+EditFormGen ..> SecurityHelper : Valida permisos antes de renderizar
+
+ListGen --> SortBar : Control de ordenación
+ListGen --> Pagination : Control de páginas
+ListGen --> SearchBarComp : Inyecta búsqueda en tabla
+ListGen --> MassEdit : Lanza asistente en selección masiva
+ListGen ..> ListHelper : Delega renderizado y atajos de teclado
+ListGen ..> SecurityHelper : Valida permisos antes de renderizar
+
+MassEdit --> EditFormGen : Renderiza formulario para cada fila
+MassEdit --> ReviewModal : Muestra cambios pendientes antes de PUT
+
+SearchBarComp --> SearchHook : Consume hook reactivo
+SearchHook --> SearchCore : Invoca searchData y gestiona LRUCache
+
+SecurityHelper ..> SecurityView : Redirige a ruta de bloqueo (/do-not-hack-my-app)
+
+@enduml

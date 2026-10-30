@@ -1,0 +1,64 @@
+@startuml
+autonumber
+skinparam shadowing false
+skinparam sequence {
+    ArrowColor #2C3E50
+    LifeLineBorderColor #2C3E50
+    ParticipantBorderColor #2C3E50
+    ParticipantBackgroundColor #ECF0F1
+}
+
+title Guardia de Seguridad y Control de Acceso en Cliente (DoNotHackMyApp)
+
+actor "Usuario" as User
+participant "Componente Protegido\n(ListGenerator / EditFormGenerator)" as ProtectedView
+participant "navigateToUnauthorized\n(DoNotHackMyAppHelper)" as GuardHelper
+participant "useNavigate\n(React Router)" as Router
+participant "DoNotHackMyApp\n(Vista de Acceso Denegado)" as SecurityShield
+
+== 1. Intercepción Previa al Renderizado ==
+
+User -> ProtectedView: Intenta renderizar vista (con props: actualUser, requiredAuth)
+activate ProtectedView
+
+ProtectedView -> GuardHelper: navigateToUnauthorized(checkAuth, actualUser, requiredAuth, navigate)
+activate GuardHelper
+
+== 2. Evaluación de Políticas de Autorización ==
+
+GuardHelper -> GuardHelper: Evaluar políticas de autorización
+note right of GuardHelper
+  Jerarquía de evaluación de permisos:
+  función personalizada, bypass explícito o
+  verificación estándar (ADMIN bypass / rol exacto).
+  Véase diagrama de actividades:
+  "18_Flujo_DoNotHackMyApp_Verificacion_Autorizacion"
+end note
+
+== 3. Resolución de Acceso ==
+
+alt Acceso Denegado (userHasAuth === false)
+    GuardHelper -> Router: navigate("/do-not-hack-my-app")
+    activate Router
+    Router -> SecurityShield: Renderiza pantalla de bloqueo
+    activate SecurityShield
+    SecurityShield --> User: Muestra aviso "Acceso No Autorizado"
+    deactivate SecurityShield
+    deactivate Router
+
+    GuardHelper --> ProtectedView: Interrumpe renderizado (return null)
+    deactivate GuardHelper
+    note right ProtectedView
+      Interrumpe el ciclo de renderizado del componente
+      al no cumplirse los criterios de autorización.
+    end note
+else Acceso Concedido (userHasAuth === true)
+    GuardHelper --> ProtectedView: Continúa ejecución normal
+    deactivate GuardHelper
+
+    ProtectedView --> User: Renderiza la tabla o formulario protegido
+end
+
+deactivate ProtectedView
+
+@enduml

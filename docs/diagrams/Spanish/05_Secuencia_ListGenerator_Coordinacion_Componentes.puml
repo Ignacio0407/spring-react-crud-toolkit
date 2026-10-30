@@ -1,0 +1,111 @@
+@startuml
+autonumber
+skinparam shadowing false
+skinparam sequence {
+    ArrowColor #2C3E50
+    LifeLineBorderColor #2C3E50
+    ParticipantBorderColor #2C3E50
+    ParticipantBackgroundColor #ECF0F1
+}
+
+title Orquestación Integral de Componentes por ListGenerator (Excluyendo WebSocketManager)
+
+actor "Usuario" as User
+participant "ListGenerator" as Orchestrator
+participant "DoNotHackMyAppHelper" as Security
+participant "ListSortBar" as SortBar
+participant "SearchBar" as Search
+participant "ListPagination" as Pager
+participant "ListGeneratorHelper\n(renderData)" as TableRenderer
+participant "MassEditWizard" as Wizard
+
+== 1. Montaje y Validación de Seguridad ==
+
+User -> Orchestrator: Accede a vista de listado con dataset: T[]
+activate Orchestrator
+
+Orchestrator -> Security: navigateToUnauthorized(checkAuth, actualUser, requiredAuth)
+activate Security
+Security --> Orchestrator: Autorizado (Prosigue el ciclo de renderizado)
+deactivate Security
+note right of Security
+  Verificación previa de permisos.
+  Véase diagrama de secuencia:
+  "08_Secuencia_DoNotHackMyApp_Guardia_Rutas"
+end note
+
+== 2. Pipeline de Transformación de Datos: Ordenación ==
+
+Orchestrator -> SortBar: Renderizar con datos base (data: T[])
+activate SortBar
+
+User -> SortBar: Selecciona ordenar por columna (ej. "name DESC")
+SortBar -> Orchestrator: onSort(sortedDataset)
+deactivate SortBar
+
+Orchestrator -> Orchestrator: setSortedData(sortedDataset)
+
+== 3. Pipeline de Transformación de Datos: Búsqueda y Filtrado ==
+
+Orchestrator -> Search: Renderizar con datos ordenados (data: sortedData)
+activate Search
+
+User -> Search: Introduce término de búsqueda (ej. "role:ADMIN")
+Search -> Orchestrator: setFiltered(filteredSubset)
+deactivate Search
+
+Orchestrator -> Orchestrator: Aplica filtros sobre dataset ordenado\n(filteredData = filtered.length ? filtered : sortedData)
+
+== 4. Paginación y Obtención de Datos Visibles ==
+
+Orchestrator -> Orchestrator: Calcula segmento visible (paginatedData = slice(inicio, fin))
+
+Orchestrator -> Pager: Renderizar controles (totalItems, pageSize, currentPage)
+activate Pager
+
+opt Usuario cambia de página
+    User -> Pager: Clic en página siguiente
+    Pager -> Orchestrator: onPageChange(newPage)
+    Orchestrator -> Orchestrator: setPage(newPage) y limpia selección previa
+end
+deactivate Pager
+
+== 5. Selección de Elementos y Atajos de Teclado ==
+
+User -> Orchestrator: Pulsa "Ctrl + A" en la vista
+Orchestrator -> Orchestrator: useCtrlAToSelectOrDeselect: alterna selección de paginatedData
+
+User -> TableRenderer: Marca casillas individuales
+TableRenderer -> Orchestrator: toggleSelectOne(id)
+Orchestrator -> Orchestrator: setSelectedIds(new Set(...))
+
+== 6. Activación del Asistente de Edición Masiva (MassEditWizard) ==
+
+User -> Orchestrator: Clic en "Edición Masiva" (selectedItems.length > 0)
+Orchestrator -> Orchestrator: setShowMassEdit(true)
+
+Orchestrator -> Wizard: Montar modal con selectedItems: T[], massEditUri
+activate Wizard
+note right of Wizard
+  Ciclo de edición paso a paso, historial Undo/Redo
+  y confirmación por lotes en backend.
+  Véase diagrama de secuencia:
+  "07_Secuencia_MassEditWizard_UndoRedo_Persistencia"
+  y diagrama de actividades:
+  "19_Flujo_MassEditWizard_Historial_UndoRedo"
+end note
+
+Wizard --> Orchestrator: onClose(updatedEntities)
+deactivate Wizard
+
+Orchestrator -> Orchestrator: Actualiza sortedData con elementos mutados
+Orchestrator -> Orchestrator: setShowMassEdit(false) y setSelectedIds(new Set())
+
+== 7. Renderizado Final Unificado ==
+
+Orchestrator -> TableRenderer: renderData({ paginatedData, selectedIds, keys, buttons })
+TableRenderer --> User: Renderiza filas, checkboxes, botones y contadores
+
+deactivate Orchestrator
+
+@enduml
